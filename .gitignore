@@ -1,0 +1,88 @@
+﻿# ============================================================
+# PHOENIX PROJECT - GIT IGNORE
+# ============================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Databases / local runtime data
+*.db
+*.sqlite
+*.sqlite3
+
+# Test / temporary databases
+*_test.db
+*_test.sqlite
+*_test.sqlite3
+
+# Logs / temporary output
+*.log
+*.tmp
+*.temp
+
+# Test and coverage caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Development backups
+*_BACKUP*/
+*_backup*/
+*BACKUP*
+*backup*
+
+# Historical snapshots / archives
+*PASSED_*
+*PASSED*
+*Legacy*
+*Archive*
+*ARCHIVE*
+
+# Patch working artifacts
+*.patch
+*.bak
+*.orig
+
+# OS files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# IDE / editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Build / distribution
+build/
+dist/
+*.egg-info/
+
+# Node frontend dependencies/build output
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Local development exports
+exports/
+tmp/
+temp/
