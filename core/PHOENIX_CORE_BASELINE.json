@@ -1,0 +1,37 @@
+{
+  "product": "Phoenix",
+  "baseline": "Phoenix Core + Admin Foundation v0.1",
+  "baseline_status": "FOUNDATION",
+  "version": "0.1",
+  "security_admin_status": "CORE_CAPABILITY",
+  "principle": "Core foundation is generic and reusable; customer-specific functionality belongs in modules/configuration.",
+  "included_platform_capabilities": [
+    "multi-tenant organisation model",
+    "users",
+    "roles and permissions",
+    "branches",
+    "user-branch assignment",
+    "module settings",
+    "feature flags",
+    "number sequences",
+    "custom fields",
+    "security events",
+    "audit trail"
+  ],
+  "patch_policy": {
+    "foundation_changes": "controlled patch",
+    "customer_specific_logic": "module or configuration",
+    "module_changes": "module-specific patch",
+    "security_hardening": "security patch"
+  },
+  "customer_ip_separation": {
+    "status": "required",
+    "rule": "Phoenix Core must not contain customer-specific data, confidential information, business rules, ERP mappings or proprietary processes."
+  },
+  "validation": {
+    "notifications_regression": "PASS",
+    "notification_tables": 5,
+    "notification_permissions_attached_to_core": 5
+  },
+  "notifications_status": "CORE_CAPABILITY"
+}

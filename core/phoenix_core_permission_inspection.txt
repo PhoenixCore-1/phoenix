@@ -1,0 +1,478 @@
+﻿
+> app.py:133:def require_user(handler):
+  app.py:134:    token = cookie_token(handler)
+  app.py:135:    if not token:
+  app.py:136:        send_json(handler, {"error":"Authentication required","code":"AUTH_REQUIRED"}, 401)
+  app.py:137:        return None
+  app.py:138:    user = user_from_session(token)
+  app.py:139:    if not user:
+  app.py:140:        send_json(handler, {"error":"Session expired","code":"SESSION_EXPIRED"}, 401)
+  app.py:141:        return None
+  app.py:142:    return user
+  app.py:143:
+  app.py:144:class Handler(BaseHTTPRequestHandler):
+  app.py:145:    def log_message(self, fmt, *args):
+  app.py:146:        print("%s - %s" % (self.address_string(), fmt % args))
+  app.py:147:
+  app.py:148:    def do_GET(self):
+  app.py:149:        path = urlparse(self.path).path
+  app.py:150:
+  app.py:151:        if path == "/" or path == "/index.html":
+  app.py:152:            try:
+  app.py:153:                base_dir = Path(__file__).resolve().parent
+  app.py:154:                index_path = base_dir / "index.html"
+  app.py:155:                body = index_path.read_bytes()
+  app.py:156:
+  app.py:157:                self.send_response(200)
+  app.py:158:                self.send_header(
+  app.py:159:                    "Content-Type",
+  app.py:160:                    "text/html; charset=utf-8"
+  app.py:161:                )
+  app.py:162:                self.send_header(
+  app.py:163:                    "Content-Length",
+  app.py:164:                    str(len(body))
+  app.py:165:                )
+  app.py:166:                self.end_headers()
+  app.py:167:                self.wfile.write(body)
+  app.py:168:
+  app.py:169:            except Exception:
+  app.py:170:                send_json(
+  app.py:171:                    self,
+  app.py:172:                    {
+  app.py:173:                        "error": "Phoenix UI unavailable"
+  app.py:174:                    },
+  app.py:175:                    500
+  app.py:176:                )
+  app.py:177:
+  app.py:178:            return
+  app.py:179:
+  app.py:180:        if path in ("/phoenix_logo.png", "/phoenix_login_background.png"):
+  app.py:181:            try:
+  app.py:182:                asset_name = path.lstrip("/")
+  app.py:183:                base_dir = Path(__file__).resolve().parent
+  app.py:184:                asset_path = base_dir / asset_name
+  app.py:185:                body = asset_path.read_bytes()
+  app.py:186:                self.send_response(200)
+  app.py:187:                self.send_header("Content-Type","image/png")
+  app.py:188:                self.send_header("Content-Length",str(len(body)))
+  app.py:189:                self.end_headers()
+  app.py:190:                self.wfile.write(body)
+  app.py:191:            except Exception:
+  app.py:192:                self.send_response(404)
+  app.py:193:                self.end_headers()
+> core.py:369:def permission_set(user_id):
+  core.py:370:    con = connect()
+  core.py:371:    rows = con.execute(
+  core.py:372:        """SELECT p.permission_code
+  core.py:373:           FROM users u
+  core.py:374:           JOIN role_permissions rp ON rp.role_id=u.role_id
+  core.py:375:           JOIN permissions p ON p.permission_id=rp.permission_id
+  core.py:376:           WHERE u.user_id=?""",
+  core.py:377:        (user_id,)
+  core.py:378:    ).fetchall()
+  core.py:379:    con.close()
+  core.py:380:    return {r["permission_code"] for r in rows}
+  core.py:381:
+  core.py:382:def _module_code_from_permission(permission):
+  core.py:383:    """
+  core.py:384:    Resolve a business-module permission to its module code.
+  core.py:385:
+  core.py:386:    Core/platform permissions such as auth.*, admin.*, audit.*,
+  core.py:387:    licensing.* and organisation.* remain ordinary role permissions.
+  core.py:388:
+  core.py:389:    Business-module permissions use the module code as their prefix,
+  core.py:390:    for example:
+  core.py:391:
+  core.py:392:        production.view
+  core.py:393:        crm.view
+  core.py:394:        inventory.manage
+  core.py:395:    """
+  core.py:396:    if not permission or "." not in permission:
+  core.py:397:        return None
+  core.py:398:
+  core.py:399:    module_code = str(permission).split(".", 1)[0].strip().lower()
+  core.py:400:
+  core.py:401:    if module_code in {
+  core.py:402:        "auth",
+  core.py:403:        "admin",
+  core.py:404:        "audit",
+  core.py:405:        "licensing",
+  core.py:406:        "modules",
+  core.py:407:        "organisation",
+  core.py:408:        "org",
+  core.py:409:        "platform",
+  core.py:410:        "billing",
+  core.py:411:        "security",
+  core.py:412:        "reporting",
+  core.py:413:    }:
+  core.py:414:        return None
+  core.py:415:
+  core.py:416:    return module_code
+  core.py:417:
+  core.py:418:
+> core.py:419:def has_module_entitlement(user_id, module_code):
+  core.py:420:    """
+  core.py:421:    Return True only when the user's organisation has:
+  core.py:422:
+  core.py:423:      1. an active Phoenix module,
+  core.py:424:      2. a valid ACTIVE/TRIAL licence,
+  core.py:425:      3. an enabled organisation module access record.
+  core.py:426:
+  core.py:427:    This is a tenant-scoped entitlement check.
+  core.py:428:
+  core.py:429:    System Administrators do not receive an operational-module
+  core.py:430:    bypass. Platform authority does not grant access to customer
+  core.py:431:    business data.
+  core.py:432:    """
+  core.py:433:    if not user_id or not module_code:
+  core.py:434:        return False
+  core.py:435:
+  core.py:436:    con = connect()
+  core.py:437:
+  core.py:438:    try:
+  core.py:439:        row = con.execute(
+  core.py:440:            """
+  core.py:441:            SELECT
+  core.py:442:                m.module_id,
+  core.py:443:                m.module_code,
+  core.py:444:                m.active AS module_active,
+  core.py:445:                l.licence_status,
+  core.py:446:                l.start_date,
+  core.py:447:                l.expiry_date,
+  core.py:448:                oma.enabled
+  core.py:449:            FROM users u
+  core.py:450:            JOIN modules m
+  core.py:451:              ON lower(m.module_code)=lower(?)
+  core.py:452:            LEFT JOIN module_licences l
+  core.py:453:              ON l.organisation_id=u.organisation_id
+  core.py:454:             AND l.module_id=m.module_id
+  core.py:455:            LEFT JOIN organisation_module_access oma
+  core.py:456:              ON oma.organisation_id=u.organisation_id
+  core.py:457:             AND oma.module_id=m.module_id
+  core.py:458:            WHERE
+  core.py:459:                u.user_id=?
+  core.py:460:                AND u.active=1
+  core.py:461:            """,
+  core.py:462:            (module_code, user_id)
+  core.py:463:        ).fetchone()
+  core.py:464:
+  core.py:465:        if not row:
+  core.py:466:            return False
+  core.py:467:
+  core.py:468:        if not row["module_active"]:
+  core.py:469:            return False
+  core.py:470:
+  core.py:471:        if not row["enabled"]:
+  core.py:472:            return False
+  core.py:473:
+  core.py:474:        if row["licence_status"] not in ("ACTIVE", "TRIAL"):
+  core.py:475:            return False
+  core.py:476:
+  core.py:477:        expiry = row["expiry_date"]
+  core.py:478:
+  core.py:479:        if expiry:
+> core.py:491:def has_permission(user_id, permission):
+  core.py:492:    """
+  core.py:493:    Central Phoenix authorization contract.
+  core.py:494:
+  core.py:495:    Core/platform permissions are evaluated through the user's role.
+  core.py:496:
+  core.py:497:    Business-module permissions require BOTH:
+  core.py:498:
+  core.py:499:      1. the user's role permission, and
+  core.py:500:      2. a valid tenant/module entitlement.
+  core.py:501:
+  core.py:502:    This prevents System Administrator platform authority from
+  core.py:503:    becoming an automatic bypass into customer business modules.
+  core.py:504:    """
+  core.py:505:    if permission not in permission_set(user_id):
+  core.py:506:        return False
+  core.py:507:
+  core.py:508:    module_code = _module_code_from_permission(permission)
+  core.py:509:
+  core.py:510:    if not module_code:
+  core.py:511:        return True
+  core.py:512:
+  core.py:513:    return has_module_entitlement(
+  core.py:514:        user_id,
+  core.py:515:        module_code
+  core.py:516:    )
+  core.py:517:
+  core.py:518:def is_system_admin(user):
+  core.py:519:    """
+  core.py:520:    Return True only for the Phoenix platform System Administrator.
+  core.py:521:
+  core.py:522:    System Administrator is a platform role. This helper deliberately
+  core.py:523:    checks the authenticated user's role rather than trusting a caller-
+  core.py:524:    supplied organisation or access scope.
+  core.py:525:    """
+  core.py:526:    if not user:
+  core.py:527:        return False
+  core.py:528:
+  core.py:529:    return (
+  core.py:530:        str(user.get("role_code") or "").lower() == "system_admin"
+  core.py:531:        and int(user.get("system_role") or 0) == 1
+  core.py:532:    )
+  core.py:533:
+  core.py:534:
+  core.py:535:def resolve_admin_organisation(user, target_organisation_id=None):
+  core.py:536:    """
+  core.py:537:    Resolve the organisation an administrative operation is allowed to
+  core.py:538:    operate against.
+  core.py:539:
+  core.py:540:    Rules:
+  core.py:541:      - Company Administrator is permanently tenant-scoped.
+  core.py:542:      - System Administrator may explicitly target another active tenant.
+  core.py:543:      - The authenticated user's organisation_id is never modified.
+  core.py:544:
+  core.py:545:    Returns:
+  core.py:546:        int organisation_id
+  core.py:547:
+  core.py:548:    Raises:
+  core.py:549:        PermissionError for cross-tenant Company Administrator access.
+  core.py:550:        ValueError for invalid/inactive target organisations.
+  core.py:551:    """
+> module_licensing.py:160:def check_module_access(user,module_id,permission_code=None):
+  module_licensing.py:161:    con=connect()
+  module_licensing.py:162:    try:
+  module_licensing.py:163:        module=con.execute("SELECT * FROM modules WHERE module_id=? AND 
+active=1",(int(module_id),)).fetchone()
+  module_licensing.py:164:        access=con.execute("""SELECT enabled FROM organisation_module_access
+  module_licensing.py:165:                              WHERE organisation_id=? AND module_id=?""",
+  module_licensing.py:166:                           (user["organisation_id"],int(module_id))).fetchone()
+  module_licensing.py:167:        if not module or not access or not access["enabled"]:
+  module_licensing.py:168:            return False
+  module_licensing.py:169:        licence=con.execute("""SELECT * FROM module_licences
+  module_licensing.py:170:                               WHERE organisation_id=? AND module_id=?""",
+  module_licensing.py:171:                            (user["organisation_id"],int(module_id))).fetchone()
+  module_licensing.py:172:        if not licence_is_valid(licence):
+  module_licensing.py:173:            return False
+  module_licensing.py:174:        if permission_code:
+  module_licensing.py:175:            return has_permission(user["user_id"],permission_code)
+  module_licensing.py:176:        return True
+  module_licensing.py:177:    finally:
+  module_licensing.py:178:        con.close()
+> patch_core_control_plane_boundary_1_0.py:135:core_old = '''def has_permission(user_id, permission):
+  patch_core_control_plane_boundary_1_0.py:136:    return permission in permission_set(user_id)
+  patch_core_control_plane_boundary_1_0.py:137:'''
+  patch_core_control_plane_boundary_1_0.py:138:
+  patch_core_control_plane_boundary_1_0.py:139:core_new = '''def _module_code_from_permission(permission):
+  patch_core_control_plane_boundary_1_0.py:140:    """
+  patch_core_control_plane_boundary_1_0.py:141:    Resolve a business-module permission to its module code.
+  patch_core_control_plane_boundary_1_0.py:142:
+  patch_core_control_plane_boundary_1_0.py:143:    Core/platform permissions such as auth.*, admin.*, audit.*,
+  patch_core_control_plane_boundary_1_0.py:144:    licensing.* and organisation.* remain ordinary role permissions.
+  patch_core_control_plane_boundary_1_0.py:145:
+  patch_core_control_plane_boundary_1_0.py:146:    Business-module permissions use the module code as their prefix,
+  patch_core_control_plane_boundary_1_0.py:147:    for example:
+  patch_core_control_plane_boundary_1_0.py:148:
+  patch_core_control_plane_boundary_1_0.py:149:        production.view
+  patch_core_control_plane_boundary_1_0.py:150:        crm.view
+  patch_core_control_plane_boundary_1_0.py:151:        inventory.manage
+  patch_core_control_plane_boundary_1_0.py:152:    """
+  patch_core_control_plane_boundary_1_0.py:153:    if not permission or "." not in permission:
+  patch_core_control_plane_boundary_1_0.py:154:        return None
+  patch_core_control_plane_boundary_1_0.py:155:
+  patch_core_control_plane_boundary_1_0.py:156:    module_code = str(permission).split(".", 1)[0].strip().lower()
+  patch_core_control_plane_boundary_1_0.py:157:
+  patch_core_control_plane_boundary_1_0.py:158:    if module_code in {
+  patch_core_control_plane_boundary_1_0.py:159:        "auth",
+  patch_core_control_plane_boundary_1_0.py:160:        "admin",
+  patch_core_control_plane_boundary_1_0.py:161:        "audit",
+  patch_core_control_plane_boundary_1_0.py:162:        "licensing",
+  patch_core_control_plane_boundary_1_0.py:163:        "modules",
+  patch_core_control_plane_boundary_1_0.py:164:        "organisation",
+  patch_core_control_plane_boundary_1_0.py:165:        "platform",
+  patch_core_control_plane_boundary_1_0.py:166:        "billing",
+  patch_core_control_plane_boundary_1_0.py:167:        "security",
+  patch_core_control_plane_boundary_1_0.py:168:    }:
+  patch_core_control_plane_boundary_1_0.py:169:        return None
+  patch_core_control_plane_boundary_1_0.py:170:
+  patch_core_control_plane_boundary_1_0.py:171:    return module_code
+  patch_core_control_plane_boundary_1_0.py:172:
+  patch_core_control_plane_boundary_1_0.py:173:
+> patch_core_control_plane_boundary_1_0.py:174:def has_module_entitlement(user_id, module_code):
+  patch_core_control_plane_boundary_1_0.py:175:    """
+  patch_core_control_plane_boundary_1_0.py:176:    Return True only when the user's organisation has:
+  patch_core_control_plane_boundary_1_0.py:177:
+  patch_core_control_plane_boundary_1_0.py:178:      1. an active Phoenix module,
+  patch_core_control_plane_boundary_1_0.py:179:      2. a valid ACTIVE/TRIAL licence,
+  patch_core_control_plane_boundary_1_0.py:180:      3. an enabled organisation module access record.
+  patch_core_control_plane_boundary_1_0.py:181:
+  patch_core_control_plane_boundary_1_0.py:182:    This is a tenant-scoped entitlement check.
+  patch_core_control_plane_boundary_1_0.py:183:
+  patch_core_control_plane_boundary_1_0.py:184:    System Administrators do not receive an operational-module
+  patch_core_control_plane_boundary_1_0.py:185:    bypass. Platform authority does not grant access to customer
+  patch_core_control_plane_boundary_1_0.py:186:    business data.
+  patch_core_control_plane_boundary_1_0.py:187:    """
+  patch_core_control_plane_boundary_1_0.py:188:    if not user_id or not module_code:
+  patch_core_control_plane_boundary_1_0.py:189:        return False
+  patch_core_control_plane_boundary_1_0.py:190:
+  patch_core_control_plane_boundary_1_0.py:191:    con = connect()
+  patch_core_control_plane_boundary_1_0.py:192:
+  patch_core_control_plane_boundary_1_0.py:193:    try:
+  patch_core_control_plane_boundary_1_0.py:194:        row = con.execute(
+  patch_core_control_plane_boundary_1_0.py:195:            """
+  patch_core_control_plane_boundary_1_0.py:196:            SELECT
+  patch_core_control_plane_boundary_1_0.py:197:                m.module_id,
+  patch_core_control_plane_boundary_1_0.py:198:                m.module_code,
+  patch_core_control_plane_boundary_1_0.py:199:                m.active AS module_active,
+  patch_core_control_plane_boundary_1_0.py:200:                l.licence_status,
+  patch_core_control_plane_boundary_1_0.py:201:                l.start_date,
+  patch_core_control_plane_boundary_1_0.py:202:                l.expiry_date,
+  patch_core_control_plane_boundary_1_0.py:203:                oma.enabled
+  patch_core_control_plane_boundary_1_0.py:204:            FROM users u
+  patch_core_control_plane_boundary_1_0.py:205:            JOIN modules m
+  patch_core_control_plane_boundary_1_0.py:206:              ON lower(m.module_code)=lower(?)
+  patch_core_control_plane_boundary_1_0.py:207:            LEFT JOIN module_licences l
+  patch_core_control_plane_boundary_1_0.py:208:              ON l.organisation_id=u.organisation_id
+  patch_core_control_plane_boundary_1_0.py:209:             AND l.module_id=m.module_id
+  patch_core_control_plane_boundary_1_0.py:210:            LEFT JOIN organisation_module_access oma
+  patch_core_control_plane_boundary_1_0.py:211:              ON oma.organisation_id=u.organisation_id
+  patch_core_control_plane_boundary_1_0.py:212:             AND oma.module_id=m.module_id
+  patch_core_control_plane_boundary_1_0.py:213:            WHERE
+  patch_core_control_plane_boundary_1_0.py:214:                u.user_id=?
+  patch_core_control_plane_boundary_1_0.py:215:                AND u.active=1
+  patch_core_control_plane_boundary_1_0.py:216:            """,
+  patch_core_control_plane_boundary_1_0.py:217:            (module_code, user_id)
+  patch_core_control_plane_boundary_1_0.py:218:        ).fetchone()
+  patch_core_control_plane_boundary_1_0.py:219:
+  patch_core_control_plane_boundary_1_0.py:220:        if not row:
+  patch_core_control_plane_boundary_1_0.py:221:            return False
+  patch_core_control_plane_boundary_1_0.py:222:
+  patch_core_control_plane_boundary_1_0.py:223:        if not row["module_active"]:
+  patch_core_control_plane_boundary_1_0.py:224:            return False
+  patch_core_control_plane_boundary_1_0.py:225:
+  patch_core_control_plane_boundary_1_0.py:226:        if not row["enabled"]:
+  patch_core_control_plane_boundary_1_0.py:227:            return False
+  patch_core_control_plane_boundary_1_0.py:228:
+  patch_core_control_plane_boundary_1_0.py:229:        if row["licence_status"] not in ("ACTIVE", "TRIAL"):
+  patch_core_control_plane_boundary_1_0.py:230:            return False
+  patch_core_control_plane_boundary_1_0.py:231:
+  patch_core_control_plane_boundary_1_0.py:232:        expiry = row["expiry_date"]
+  patch_core_control_plane_boundary_1_0.py:233:
+  patch_core_control_plane_boundary_1_0.py:234:        if expiry:
+> patch_core_control_plane_boundary_1_0.py:246:def has_permission(user_id, permission):
+  patch_core_control_plane_boundary_1_0.py:247:    """
+  patch_core_control_plane_boundary_1_0.py:248:    Central Phoenix authorization contract.
+  patch_core_control_plane_boundary_1_0.py:249:
+  patch_core_control_plane_boundary_1_0.py:250:    Core/platform permissions are evaluated through the user's role.
+  patch_core_control_plane_boundary_1_0.py:251:
+  patch_core_control_plane_boundary_1_0.py:252:    Business-module permissions require BOTH:
+  patch_core_control_plane_boundary_1_0.py:253:
+  patch_core_control_plane_boundary_1_0.py:254:      1. the user's role permission, and
+  patch_core_control_plane_boundary_1_0.py:255:      2. a valid tenant/module entitlement.
+  patch_core_control_plane_boundary_1_0.py:256:
+  patch_core_control_plane_boundary_1_0.py:257:    This prevents System Administrator platform authority from
+  patch_core_control_plane_boundary_1_0.py:258:    becoming an automatic bypass into customer business modules.
+  patch_core_control_plane_boundary_1_0.py:259:    """
+  patch_core_control_plane_boundary_1_0.py:260:    if permission not in permission_set(user_id):
+  patch_core_control_plane_boundary_1_0.py:261:        return False
+  patch_core_control_plane_boundary_1_0.py:262:
+  patch_core_control_plane_boundary_1_0.py:263:    module_code = _module_code_from_permission(permission)
+  patch_core_control_plane_boundary_1_0.py:264:
+  patch_core_control_plane_boundary_1_0.py:265:    if not module_code:
+  patch_core_control_plane_boundary_1_0.py:266:        return True
+  patch_core_control_plane_boundary_1_0.py:267:
+  patch_core_control_plane_boundary_1_0.py:268:    return has_module_entitlement(
+  patch_core_control_plane_boundary_1_0.py:269:        user_id,
+  patch_core_control_plane_boundary_1_0.py:270:        module_code
+  patch_core_control_plane_boundary_1_0.py:271:    )
+  patch_core_control_plane_boundary_1_0.py:272:'''
+  patch_core_control_plane_boundary_1_0.py:273:
+  patch_core_control_plane_boundary_1_0.py:274:replace_once(
+  patch_core_control_plane_boundary_1_0.py:275:    CORE,
+  patch_core_control_plane_boundary_1_0.py:276:    core_old,
+  patch_core_control_plane_boundary_1_0.py:277:    core_new,
+  patch_core_control_plane_boundary_1_0.py:278:    "Core permission enforcement"
+  patch_core_control_plane_boundary_1_0.py:279:)
+  patch_core_control_plane_boundary_1_0.py:280:
+  patch_core_control_plane_boundary_1_0.py:281:print("Core entitlement enforcement: PASS")
+  patch_core_control_plane_boundary_1_0.py:282:
+  patch_core_control_plane_boundary_1_0.py:283:
+  patch_core_control_plane_boundary_1_0.py:284:# ------------------------------------------------------------------
+  patch_core_control_plane_boundary_1_0.py:285:# PATCH MODULE LICENSING
+  patch_core_control_plane_boundary_1_0.py:286:# ------------------------------------------------------------------
+  patch_core_control_plane_boundary_1_0.py:287:
+  patch_core_control_plane_boundary_1_0.py:288:licensing_old = '''def list_licences(user):
+  patch_core_control_plane_boundary_1_0.py:289:    _require(user,"licensing.view")
+  patch_core_control_plane_boundary_1_0.py:290:'''
+  patch_core_control_plane_boundary_1_0.py:291:
+  patch_core_control_plane_boundary_1_0.py:292:licensing_new = '''def list_licences(user):
+  patch_core_control_plane_boundary_1_0.py:293:    _require(user,"licensing.view")
+  patch_core_control_plane_boundary_1_0.py:294:'''
+  patch_core_control_plane_boundary_1_0.py:295:
+  patch_core_control_plane_boundary_1_0.py:296:# Deliberately verify the licensing contract exists without changing
+  patch_core_control_plane_boundary_1_0.py:297:# it. Licensing authority remains System Administrator controlled.
+  patch_core_control_plane_boundary_1_0.py:298:text = MODULE_LICENSING.read_text(
+  patch_core_control_plane_boundary_1_0.py:299:    encoding="utf-8"
+  patch_core_control_plane_boundary_1_0.py:300:)
+  patch_core_control_plane_boundary_1_0.py:301:
+  patch_core_control_plane_boundary_1_0.py:302:required_contracts = [
+  patch_core_control_plane_boundary_1_0.py:303:    'licensing.view',
+  patch_core_control_plane_boundary_1_0.py:304:    'licensing.manage',
+  patch_core_control_plane_boundary_1_0.py:305:    'def set_licence',
+  patch_core_control_plane_boundary_1_0.py:306:    'def enable_module',
+> patch_core_control_plane_boundary_1_0.py:308:    'def check_module_access',
+  patch_core_control_plane_boundary_1_0.py:309:]
+  patch_core_control_plane_boundary_1_0.py:310:
+  patch_core_control_plane_boundary_1_0.py:311:for contract in required_contracts:
+  patch_core_control_plane_boundary_1_0.py:312:    if contract not in text:
+  patch_core_control_plane_boundary_1_0.py:313:        fail(
+  patch_core_control_plane_boundary_1_0.py:314:            "Licensing contract missing: "
+  patch_core_control_plane_boundary_1_0.py:315:            + contract
+  patch_core_control_plane_boundary_1_0.py:316:        )
+  patch_core_control_plane_boundary_1_0.py:317:
+  patch_core_control_plane_boundary_1_0.py:318:print("Licensing authority contract: PASS")
+  patch_core_control_plane_boundary_1_0.py:319:
+  patch_core_control_plane_boundary_1_0.py:320:
+  patch_core_control_plane_boundary_1_0.py:321:# ------------------------------------------------------------------
+  patch_core_control_plane_boundary_1_0.py:322:# VERIFY APP STILL USES CENTRAL AUTHORIZATION
+  patch_core_control_plane_boundary_1_0.py:323:# ------------------------------------------------------------------
+  patch_core_control_plane_boundary_1_0.py:324:
+  patch_core_control_plane_boundary_1_0.py:325:app_text = APP.read_text(
+  patch_core_control_plane_boundary_1_0.py:326:    encoding="utf-8"
+  patch_core_control_plane_boundary_1_0.py:327:)
+  patch_core_control_plane_boundary_1_0.py:328:
+  patch_core_control_plane_boundary_1_0.py:329:if "has_permission(" not in app_text:
+  patch_core_control_plane_boundary_1_0.py:330:    fail(
+  patch_core_control_plane_boundary_1_0.py:331:        "app.py does not contain central permission checks."
+  patch_core_control_plane_boundary_1_0.py:332:    )
+  patch_core_control_plane_boundary_1_0.py:333:
+  patch_core_control_plane_boundary_1_0.py:334:if "/api/admin/companies/" not in app_text:
+  patch_core_control_plane_boundary_1_0.py:335:    fail(
+  patch_core_control_plane_boundary_1_0.py:336:        "Company administration API boundary not found."
+  patch_core_control_plane_boundary_1_0.py:337:    )
+  patch_core_control_plane_boundary_1_0.py:338:
+  patch_core_control_plane_boundary_1_0.py:339:print("Application authorization hooks: PASS")
+  patch_core_control_plane_boundary_1_0.py:340:
+  patch_core_control_plane_boundary_1_0.py:341:
+  patch_core_control_plane_boundary_1_0.py:342:# ------------------------------------------------------------------
+  patch_core_control_plane_boundary_1_0.py:343:# COMPILE
+  patch_core_control_plane_boundary_1_0.py:344:# ------------------------------------------------------------------
+  patch_core_control_plane_boundary_1_0.py:345:
+  patch_core_control_plane_boundary_1_0.py:346:print("")
+  patch_core_control_plane_boundary_1_0.py:347:print("Compiling patched Core files...")
+  patch_core_control_plane_boundary_1_0.py:348:
+  patch_core_control_plane_boundary_1_0.py:349:compile_check(CORE)
+  patch_core_control_plane_boundary_1_0.py:350:compile_check(MODULE_LICENSING)
+  patch_core_control_plane_boundary_1_0.py:351:compile_check(APP)
+  patch_core_control_plane_boundary_1_0.py:352:
+  patch_core_control_plane_boundary_1_0.py:353:print("Python compilation: PASS")
+  patch_core_control_plane_boundary_1_0.py:354:
+  patch_core_control_plane_boundary_1_0.py:355:
+  patch_core_control_plane_boundary_1_0.py:356:# ------------------------------------------------------------------
+  patch_core_control_plane_boundary_1_0.py:357:# DATABASE INTEGRITY
+  patch_core_control_plane_boundary_1_0.py:358:# ------------------------------------------------------------------
+  patch_core_control_plane_boundary_1_0.py:359:
+  patch_core_control_plane_boundary_1_0.py:360:db_check()
+  patch_core_control_plane_boundary_1_0.py:361:
+  patch_core_control_plane_boundary_1_0.py:362:print("Database integrity: PASS")
+  patch_core_control_plane_boundary_1_0.py:363:print("Foreign key check: PASS")
+  patch_core_control_plane_boundary_1_0.py:364:
+  patch_core_control_plane_boundary_1_0.py:365:
+  patch_core_control_plane_boundary_1_0.py:366:# ------------------------------------------------------------------
+  patch_core_control_plane_boundary_1_0.py:367:# VERIFY REQUIRED SECURITY CONTRACTS
+  patch_core_control_plane_boundary_1_0.py:368:# ------------------------------------------------------------------
+
+

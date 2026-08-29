@@ -1,0 +1,47 @@
+{
+  "product": "Phoenix",
+  "baseline_name": "Phoenix Core Foundation",
+  "version": "0.1",
+  "status": "FROZEN_BASELINE",
+  "freeze_date": "2026-08-14",
+  "scope": [
+    "multi-tenant organisation foundation",
+    "users",
+    "roles and permissions",
+    "branches and user-branch access",
+    "module settings",
+    "feature flags",
+    "number sequences",
+    "custom fields",
+    "security events",
+    "audit trail",
+    "notifications and communications"
+  ],
+  "core_capabilities": [
+    "Security & Administration",
+    "Notifications & Communications",
+    "shared platform services",
+    "tenant isolation",
+    "permission model",
+    "audit foundation"
+  ],
+  "architecture_rule": "Core remains generic and reusable. Customer-specific business logic, data, confidential information, ERP mappings, workflows and proprietary processes belong in modules/configuration/adapters.",
+  "patch_policy": {
+    "core_change": "controlled Core patch with regression testing",
+    "security_hardening": "controlled security patch",
+    "module_change": "module-specific patch",
+    "customer_configuration": "configuration only where possible",
+    "customer_specific_logic": "customer module/adapter, never embedded into Core"
+  },
+  "release_rule": "Do not modify the frozen baseline directly. Create a new patch version and regression-test against this baseline.",
+  "validation": "PASS",
+  "validation_detail": {
+    "tables": "PASS",
+    "core_registration": "PASS",
+    "admin_permissions": "PASS (8)",
+    "notification_permissions": "PASS (5)",
+    "tenant_foundation": "PASS",
+    "security_admin": "PASS",
+    "notifications": "PASS"
+  }
+}

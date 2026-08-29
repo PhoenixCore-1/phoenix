@@ -1,0 +1,180 @@
+@'
+from pathlib import Path
+import sqlite3
+
+ROOT = Path(__file__).resolve().parent
+DB = ROOT / "phoenix_core.db"
+
+FILES = [
+    ROOT / "core.py",
+    ROOT / "auth_admin.py",
+    ROOT / "module_licensing.py",
+    ROOT / "organisation_admin.py",
+]
+
+# ------------------------------------------------------------
+# SOURCE PATCHES
+# ------------------------------------------------------------
+
+replacements = {
+    "core.py": [
+        (
+            '("platform_admin", "Platform Administrator")',
+            '("system_admin", "System Administrator")',
+        ),
+        (
+            "WHERE r.role_code='platform_admin'",
+            "WHERE r.role_code='system_admin'",
+        ),
+    ],
+    "auth_admin.py": [
+        (
+            "role_code='platform_admin'",
+            "role_code='system_admin'",
+        ),
+    ],
+    "module_licensing.py": [
+        (
+            "role_code='platform_admin'",
+            "role_code='system_admin'",
+        ),
+    ],
+    "organisation_admin.py": [
+        (
+            "role_code='platform_admin'",
+            "role_code='system_admin'",
+        ),
+    ],
+}
+
+for filename, reps in replacements.items():
+    path = ROOT / filename
+    text = path.read_text(encoding="utf-8")
+    original = text
+
+    for old, new in reps:
+        if old not in text:
+            raise RuntimeError(
+                f"PATCH ABORTED: expected text not found in {filename}: {old}"
+            )
+        text = text.replace(old, new)
+
+    if text == original:
+        raise RuntimeError(f"PATCH ABORTED: no change made to {filename}")
+
+    path.write_text(text, encoding="utf-8")
+
+# ------------------------------------------------------------
+# DATABASE MIGRATION
+# ------------------------------------------------------------
+
+con = sqlite3.connect(DB)
+con.execute("PRAGMA foreign_keys=ON")
+
+try:
+    # Existing platform administrator becomes formal System Administrator.
+    con.execute(
+        """
+        UPDATE roles
+        SET role_code='system_admin',
+            role_name='System Administrator',
+            system_role=1
+        WHERE role_code='platform_admin'
+        """
+    )
+
+    # Ensure Company Administrator exists for every organisation.
+    organisations = con.execute(
+        """
+        SELECT organisation_id
+        FROM organisations
+        WHERE active=1
+        ORDER BY organisation_id
+        """
+    ).fetchall()
+
+    for (organisation_id,) in organisations:
+        con.execute(
+            """
+            INSERT OR IGNORE INTO roles(
+                organisation_id,
+                role_code,
+                role_name,
+                system_role,
+                active
+            )
+            VALUES(?, 'company_admin', 'Company Administrator', 0, 1)
+            """,
+            (organisation_id,),
+        )
+
+        role = con.execute(
+            """
+            SELECT role_id
+            FROM roles
+            WHERE organisation_id=?
+              AND role_code='company_admin'
+            """,
+            (organisation_id,),
+        ).fetchone()
+
+        if not role:
+            raise RuntimeError(
+                f"Company Administrator role was not created for organisation "
+                f"{organisation_id}"
+            )
+
+        role_id = role[0]
+
+        # Company Administrator permissions.
+        company_permissions = [
+            "admin.view",
+            "admin.roles",
+            "admin.users",
+            "admin.branches",
+            "admin.settings",
+            "admin.custom_fields",
+            "admin.sequences",
+            "admin.security",
+            "auth.users.view",
+            "auth.users.manage",
+            "auth.password.reset",
+            "auth.password.change",
+            "org.structure.view",
+            "org.structure.manage",
+            "modules.view",
+            "audit.view",
+        ]
+
+        for permission_code in company_permissions:
+            permission = con.execute(
+                """
+                SELECT permission_id
+                FROM permissions
+                WHERE permission_code=?
+                """,
+                (permission_code,),
+            ).fetchone()
+
+            if permission:
+                con.execute(
+                    """
+                    INSERT OR IGNORE INTO role_permissions(
+                        role_id,
+                        permission_id
+                    )
+                    VALUES(?,?)
+                    """,
+                    (role_id, permission[0]),
+                )
+
+    con.commit()
+
+finally:
+    con.close()
+
+print("PCA CORE ADMIN FOUNDATION PATCH: PASS")
+print("System Administrator role established.")
+print("Company Administrator role established for active organisations.")
+print("Legacy platform_admin references migrated.")
+'@ | Set-Content ".\patch_core_admin_foundation_1_0.py" -Encoding UTF8

@@ -1,0 +1,51 @@
+MODULES = [
+    {
+        "code": "core",
+        "name": "Phoenix Core",
+        "description": "Platform foundation",
+        "core": True,
+        "default_enabled": True,
+    },
+    {
+        "code": "crm",
+        "name": "CRM",
+        "description": "Customer relationship management",
+        "core": False,
+        "default_enabled": False,
+    },
+    {
+        "code": "projects",
+        "name": "Projects",
+        "description": "Project management",
+        "core": False,
+        "default_enabled": False,
+    },
+    {
+        "code": "sales",
+        "name": "Sales",
+        "description": "Sales and quoting",
+        "core": False,
+        "default_enabled": False,
+    },
+    {
+        "code": "production",
+        "name": "Production",
+        "description": "Production management",
+        "core": False,
+        "default_enabled": False,
+    },
+    {
+        "code": "inventory",
+        "name": "Inventory",
+        "description": "Inventory management",
+        "core": False,
+        "default_enabled": False,
+    },
+    {
+        "code": "procurement",
+        "name": "Procurement",
+        "description": "Procurement management",
+        "core": False,
+        "default_enabled": False,
+    },
+]

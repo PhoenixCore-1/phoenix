@@ -1,0 +1,129 @@
+﻿
+> core.py:618:def enabled_modules(organisation_id):
+  core.py:619:    con = connect()
+  core.py:620:    rows = con.execute(
+  core.py:621:        """SELECT m.module_code,m.module_name,m.description,m.core,om.configuration_json
+  core.py:622:           FROM organisation_modules om
+  core.py:623:           JOIN modules m ON m.module_id=om.module_id
+  core.py:624:           WHERE om.organisation_id=? AND om.enabled=1 AND m.active=1
+  core.py:625:           ORDER BY m.core DESC,m.module_name""",
+  core.py:626:        (organisation_id,)
+  core.py:627:    ).fetchall()
+  core.py:628:    con.close()
+  core.py:629:    return [dict(r) for r in rows]
+  core.py:630:
+  core.py:631:
+  core.py:632:def set_setting(organisation_id, key, value):
+  core.py:633:    con = connect()
+  core.py:634:    con.execute(
+  core.py:635:        """INSERT INTO organisation_settings(organisation_id,setting_key,setting_value,updated_at)
+  core.py:636:           VALUES(?,?,?,?)
+  core.py:637:           ON CONFLICT(organisation_id,setting_key)
+  core.py:638:           DO UPDATE SET setting_value=excluded.setting_value,updated_at=excluded.updated_at""",
+  core.py:639:        (organisation_id, key, str(value), now())
+  core.py:640:    )
+  core.py:641:    con.commit()
+  core.py:642:    con.close()
+  core.py:643:
+  core.py:644:def get_settings(organisation_id):
+  core.py:645:    con = connect()
+  core.py:646:    rows = con.execute(
+  core.py:647:        "SELECT setting_key,setting_value FROM organisation_settings WHERE organisation_id=? ORDER BY 
+setting_key",
+  core.py:648:        (organisation_id,)
+  core.py:649:    ).fetchall()
+  core.py:650:    con.close()
+  core.py:651:    return {r["setting_key"]: r["setting_value"] for r in rows}
+  core.py:652:
+  core.py:653:def emit_event(organisation_id, user_id, event_type, payload=None):
+  core.py:654:    con = connect()
+  core.py:655:    con.execute(
+  core.py:656:        "INSERT INTO system_events(organisation_id,user_id,event_type,payload_json,created_at) 
+VALUES(?,?,?,?,?)",
+  core.py:657:        (organisation_id, user_id, event_type, json.dumps(payload or {}), now())
+  core.py:658:    )
+  core.py:659:    con.commit()
+  core.py:660:    con.close()
+  core.py:661:
+  core.py:662:
+  core.py:663:def register_module_contract(con, module):
+  core.py:664:    cur = con.execute(
+  core.py:665:        "INSERT OR IGNORE INTO modules(module_code,module_name,description,core,active) 
+VALUES(?,?,?,?,1)",
+  core.py:666:        (module.code, module.name, module.description, int(module.core))
+  core.py:667:    )
+  core.py:668:    row = con.execute(
+  core.py:669:        "SELECT module_id FROM modules WHERE module_code=?", (module.code,)
+  core.py:670:    ).fetchone()
+  core.py:671:    module_id = row["module_id"]
+  core.py:672:
+  core.py:673:    for perm in module.permissions:
+  core.py:674:        con.execute(
+  core.py:675:            "INSERT OR IGNORE INTO permissions(permission_code,permission_name,description) 
+VALUES(?,?,?)",
+  core.py:676:            (perm.code, perm.name, perm.description)
+  core.py:677:        )
+  core.py:678:        p = con.execute(
+> core.py:701:def menu_for_user(user_id):
+  core.py:702:    con = connect()
+  core.py:703:    rows = con.execute(
+  core.py:704:        """SELECT m.module_code,m.module_name,mi.menu_code,mi.label,mi.route,
+  core.py:705:                  mi.permission_code,mi.display_order
+  core.py:706:           FROM module_menu_items mi
+  core.py:707:           JOIN modules m ON m.module_id=mi.module_id
+  core.py:708:           JOIN organisation_modules om ON om.module_id=m.module_id
+  core.py:709:           JOIN users u ON u.organisation_id=om.organisation_id
+  core.py:710:           WHERE u.user_id=? AND om.enabled=1 AND m.active=1 AND mi.active=1
+  core.py:711:           ORDER BY mi.display_order,mi.menu_id""",
+  core.py:712:        (user_id,)
+  core.py:713:    ).fetchall()
+  core.py:714:    con.close()
+  core.py:715:    perms = permission_set(user_id)
+  core.py:716:    return [
+  core.py:717:        dict(r) for r in rows
+  core.py:718:        if not r["permission_code"] or r["permission_code"] in perms
+  core.py:719:    ]
+  core.py:720:
+  core.py:721:def start_workflow(user_id, workflow_id, entity_type, entity_id):
+  core.py:722:    con = connect()
+  core.py:723:    user = con.execute(
+  core.py:724:        "SELECT organisation_id FROM users WHERE user_id=? AND active=1",
+  core.py:725:        (user_id,)
+  core.py:726:    ).fetchone()
+  core.py:727:    wf = con.execute(
+  core.py:728:        "SELECT * FROM workflows WHERE workflow_id=? AND organisation_id=? AND active=1",
+  core.py:729:        (workflow_id, user["organisation_id"] if user else -1)
+  core.py:730:    ).fetchone() if user else None
+  core.py:731:    if not user or not wf:
+  core.py:732:        con.close()
+  core.py:733:        raise ValueError("Workflow not available")
+  core.py:734:
+  core.py:735:    first = con.execute(
+  core.py:736:        """SELECT * FROM workflow_stages
+  core.py:737:           WHERE workflow_id=? AND active=1
+  core.py:738:           ORDER BY sequence_no LIMIT 1""",
+  core.py:739:        (workflow_id,)
+  core.py:740:    ).fetchone()
+  core.py:741:    if not first:
+  core.py:742:        con.close()
+  core.py:743:        raise ValueError("Workflow has no active stages")
+  core.py:744:
+  core.py:745:    cur = con.execute(
+  core.py:746:        """INSERT INTO workflow_instances(
+  core.py:747:            organisation_id,workflow_id,entity_type,entity_id,
+  core.py:748:            current_stage_id,status,started_at
+  core.py:749:        ) VALUES(?,?,?,?,?,?,?)""",
+  core.py:750:        (
+  core.py:751:            user["organisation_id"],workflow_id,entity_type,str(entity_id),
+  core.py:752:            first["stage_id"],"Active",now()
+  core.py:753:        )
+  core.py:754:    )
+  core.py:755:    instance_id = cur.lastrowid
+  core.py:756:    con.execute(
+  core.py:757:        """INSERT INTO workflow_instance_events(
+  core.py:758:            workflow_instance_id,to_stage_id,action,user_id,created_at
+  core.py:759:        ) VALUES(?,?,?,?,?)""",
+  core.py:760:        (instance_id,first["stage_id"],"START",user_id,now())
+  core.py:761:    )
+
+
