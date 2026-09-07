@@ -48,4 +48,11 @@ MODULES = [
         "core": False,
         "default_enabled": False,
     },
+    {
+        "code": "account_360",
+        "name": "Account 360",
+        "description": "Unified customer account financial, commercial and operational experience",
+        "core": False,
+        "default_enabled": False,
+    },
 ]
