@@ -33,6 +33,17 @@ class V2HttpAuth:
             organisation_id=organisation_id,
         )
 
+    def platform_destination(self, session_id, organisation_id):
+        if not session_id or not organisation_id:
+            raise ValueError(
+                "V2 platform resolution requires session_id and organisation_id."
+            )
+        return self.adapter.resolve_platform_destination(
+            request_id=self.adapter._request_id(),
+            session_id=session_id,
+            organisation_id=organisation_id,
+        )
+
     def logout(self, token):
         if not token:
             raise ValueError("Authenticated V2 session token is required.")
