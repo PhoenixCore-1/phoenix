@@ -1,0 +1,12 @@
+/* Phoenix User UI V0.1 — About Phoenix workspace. */
+
+export function renderAboutPhoenixWorkspace({ workspaceView, context }) {
+  const moduleCount = Array.isArray(context?.authorizedModules) ? context.authorizedModules.length : 0;
+  workspaceView.innerHTML = `
+    <header class="workspace-header"><div><p class="eyebrow">User Profile</p><h1 class="workspace-title">About Phoenix</h1><p class="workspace-subtitle">Platform and workspace information visible to the authenticated user.</p></div></header>
+    <div class="content-grid">
+      <section class="card panel"><h2 class="panel-title">Phoenix User UI</h2><dl class="profile-details"><div class="profile-detail"><dt>Workspace</dt><dd>Authenticated User UI</dd></div><div class="profile-detail"><dt>Release</dt><dd>V0.1</dd></div><div class="profile-detail"><dt>Architecture</dt><dd>Core service boundary</dd></div></dl></section>
+      <section class="card panel"><h2 class="panel-title">Current Context</h2><dl class="profile-details"><div class="profile-detail"><dt>Company</dt><dd>${String(context?.tenant?.name || "Current Tenant")}</dd></div><div class="profile-detail"><dt>Authorised modules</dt><dd>${moduleCount}</dd></div></dl></section>
+      <section class="card panel"><h2 class="panel-title">Architecture</h2><p class="panel-subtitle">Phoenix Core owns identity, authentication, tenant isolation, authorisation and shared services. Business modules own their business rules and workflows. The User UI does not connect directly to databases.</p></section>
+    </div>`;
+}
