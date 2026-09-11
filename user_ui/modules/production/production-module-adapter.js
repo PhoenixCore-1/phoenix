@@ -9,6 +9,14 @@
 export const PRODUCTION_MODULE_CODE = "production";
 export const PRODUCTION_UI_CONTRACT_VERSION = "1.0";
 
+export const PRODUCTION_ACTIONS = Object.freeze([
+  "release",
+  "start",
+  "hold",
+  "resume",
+  "complete"
+]);
+
 export function getProductionContract(moduleMetadata) {
   if (!moduleMetadata || moduleMetadata.code !== PRODUCTION_MODULE_CODE) {
     throw new Error("Production module is not available in this session.");
@@ -20,7 +28,10 @@ export function getProductionContract(moduleMetadata) {
     version: moduleMetadata.version || "—",
     uiContractVersion: PRODUCTION_UI_CONTRACT_VERSION,
     menu: Array.isArray(moduleMetadata.menu) ? moduleMetadata.menu : [],
-    permissions: Array.isArray(moduleMetadata.permissions) ? moduleMetadata.permissions : []
+    permissions: Array.isArray(moduleMetadata.permissions) ? moduleMetadata.permissions : [],
+    actions: Array.isArray(moduleMetadata.actions)
+      ? moduleMetadata.actions
+      : []
   };
 }
 
@@ -62,4 +73,23 @@ export async function getProductionStages(orderId) {
   }
 
   return api.getStages(orderId);
+}
+
+export async function executeProductionAction(action, orderId, payload = {}) {
+  if (!PRODUCTION_ACTIONS.includes(action)) {
+    throw new Error("Unsupported Production action.");
+  }
+
+  const api = getProductionApi();
+  if (!api?.executeAction) {
+    throw new Error("Production action service is not connected.");
+  }
+
+  return api.executeAction({
+    action,
+    orderId,
+    payload,
+    idempotencyKey: crypto.randomUUID(),
+    correlationId: crypto.randomUUID()
+  });
 }
