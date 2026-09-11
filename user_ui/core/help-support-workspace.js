@@ -1,0 +1,11 @@
+/* Phoenix User UI V0.1 — Help & Support workspace. */
+
+export function renderHelpSupportWorkspace({ workspaceView }) {
+  workspaceView.innerHTML = `
+    <header class="workspace-header"><div><p class="eyebrow">User Profile</p><h1 class="workspace-title">Help &amp; Support</h1><p class="workspace-subtitle">Guidance for using Phoenix and a clear path to support when something needs attention.</p></div></header>
+    <div class="content-grid">
+      <section class="card panel"><h2 class="panel-title">Using Phoenix</h2><p class="panel-subtitle">Start with the workspace that matches what you need to do.</p><ul class="security-list"><li><strong>My Work</strong> — tasks, attention items and notifications.</li><li><strong>Documents</strong> — access documents made available through Core.</li><li><strong>Modules</strong> — business workspaces authorised for your session.</li><li><strong>Profile</strong> — your identity and personal settings.</li></ul></section>
+      <section class="card panel"><h2 class="panel-title">Need assistance?</h2><p class="panel-subtitle">Support channels are deployment-specific and must be supplied by the host.</p><div class="empty-state"><div><strong>Support contact not configured</strong><div>Phoenix will not invent an email address, phone number or support URL.</div></div></div></section>
+      <section class="card panel"><h2 class="panel-title">Security reminder</h2><p class="panel-subtitle">Never provide your password or authentication token to support personnel through the User UI.</p></section>
+    </div>`;
+}
