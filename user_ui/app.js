@@ -1,4 +1,4 @@
-import { getHostModuleCatalog, moduleFromMenuRoute } from "./core/module-registry-adapter.js";
+import { getHostModuleCatalog, normalizeModuleCatalog, moduleFromMenuRoute } from "./core/module-registry-adapter.js";
 import { coreServiceAdapter } from "./core/core-service-adapter.js";
 import { renderHomeWorkspace } from "./core/home-workspace.js";
 import { renderMyWorkWorkspace } from "./core/my-work-workspace.js";
@@ -66,5 +66,27 @@ window.addEventListener("phoenix:my-work-open", (event) => { const detail = even
 document.querySelectorAll("[data-route]").forEach((item) => item.addEventListener("click", () => navigate(item.dataset.route)));
 document.querySelectorAll("[data-action]").forEach((item) => item.addEventListener("click", () => handleHeaderAction(item.dataset.action)));
 window.addEventListener("popstate", () => navigate(location.hash.replace(/^#\//, "") || "home"));
-async function boot() { try { const session = await coreServiceAdapter.getUserContext(); phoenixContext.session = session; const user = session?.user || {}; phoenixContext.tenant = { id: user.organisation_id ?? session?.organisation_id ?? null, name: user.organisation_name || session?.organisation_name || "Current Tenant" }; phoenixContext.user = { id: user.user_id ?? user.id ?? session?.identity_id ?? null, username: user.username ?? null, displayName: user.display_name || user.username || "User", display_name: user.display_name, user_id: user.user_id ?? user.id, organisation_id: user.organisation_id ?? session?.organisation_id, organisation_name: user.organisation_name ?? session?.organisation_name }; coreServiceAdapter.setContext({ sessionId: session?.session_id ?? session?.sessionId, token: session?.token, organisationId: phoenixContext.user.organisation_id }); const catalog = await coreServiceAdapter.getAuthorizedModuleCatalog(); window.PhoenixCoreModuleCatalog = catalog; phoenixContext.authorizedModules = getHostModuleCatalog(); } catch (error) { phoenixContext.authorizedModules = []; renderError("Phoenix session unavailable", error?.message || "The authenticated Core service could not be reached."); } tenantName.textContent = phoenixContext.tenant.name; userName.textContent = phoenixContext.user.displayName; renderAuthorizedModules(); navigate(location.hash.replace(/^#\//, "") || "home"); }
+async function boot() {
+  try {
+    const session = await coreServiceAdapter.getUserContext();
+    if (!session || session.status === "unauthenticated" || session.authenticated === false) throw new Error("No authenticated Phoenix Core session is available.");
+    phoenixContext.session = session;
+    const user = session?.user || {};
+    phoenixContext.tenant = { id: user.organisation_id ?? session?.organisation_id ?? null, name: user.organisation_name || session?.organisation_name || "Current Tenant" };
+    phoenixContext.user = { id: user.user_id ?? user.id ?? session?.identity_id ?? null, username: user.username ?? null, displayName: user.display_name || user.username || "User", display_name: user.display_name, user_id: user.user_id ?? user.id, organisation_id: user.organisation_id ?? session?.organisation_id, organisation_name: user.organisation_name ?? session?.organisation_name };
+    if (!phoenixContext.tenant.id) throw new Error("Phoenix Core did not provide an authoritative organisation context.");
+    coreServiceAdapter.setContext({ sessionId: session?.session_id ?? session?.sessionId, token: session?.token, organisationId: phoenixContext.tenant.id });
+    const catalog = normalizeModuleCatalog(await coreServiceAdapter.getAuthorizedModuleCatalog());
+    phoenixContext.authorizedModules = catalog;
+    window.PhoenixCoreModuleCatalog = catalog;
+  } catch (error) {
+    phoenixContext.authorizedModules = [];
+    coreServiceAdapter.clearContext();
+    renderError("Phoenix session unavailable", error?.message || "The authenticated Core service could not be reached.");
+  }
+  tenantName.textContent = phoenixContext.tenant.name;
+  userName.textContent = phoenixContext.user.displayName;
+  renderAuthorizedModules();
+  if (phoenixContext.session) navigate(location.hash.replace(/^#\//, "") || "home");
+}
 boot();
