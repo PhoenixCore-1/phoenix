@@ -1,3 +1,5 @@
+import { renderProfileNavigation } from "./profile-navigation.js";
+
 /* Phoenix User UI V0.1 — User activity workspace.
  * Audit/activity records are Core-owned; the browser never queries storage directly.
  */
@@ -11,12 +13,14 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-export async function renderActivityWorkspace({ workspaceView, coreServiceAdapter }) {
+export async function renderActivityWorkspace({ workspaceView, coreServiceAdapter, navigate }) {
   workspaceView.innerHTML = `
     <header class="workspace-header"><div><p class="eyebrow">User Profile</p><h1 class="workspace-title">Activity</h1><p class="workspace-subtitle">Review activity made available to you by Phoenix Core.</p></div><button class="button secondary" type="button" data-refresh>Refresh</button></header>
+    <div data-profile-navigation></div>
     <section class="card panel"><div class="status" data-activity-status role="status" aria-live="polite">Loading activity…</div><div class="activity-list" data-activity-list></div></section>
     <section class="card panel"><h2 class="panel-title">Audit authority</h2><p class="panel-subtitle">Security and audit records remain authoritative in Phoenix Core. This workspace is read-only.</p></section>`;
 
+  renderProfileNavigation(workspaceView.querySelector("[data-profile-navigation]"), navigate, "activity");
   const status = workspaceView.querySelector("[data-activity-status]");
   const list = workspaceView.querySelector("[data-activity-list]");
   const load = async () => {
