@@ -1,26 +1,25 @@
 """Explicit host adoption guard for Phoenix Core V2.
 
-The existing HTTP host can use this boundary to select V2 authentication. The
-important invariant is that an enabled-but-unavailable V2 runtime is an error,
-not permission to silently return to legacy authentication.
+An enabled-but-unavailable V2 runtime is an error, not permission to silently
+return to legacy authentication.
 """
 
 from __future__ import annotations
 
 from .feature_switch import v2_enabled
-from .http_integration import V2HttpIntegration, V2HttpIntegrationError
+from .http_host_middleware import V2HostMiddleware
 
 
 class V2HostAdoptionError(RuntimeError):
     """Raised when V2 is enabled but cannot be used safely."""
 
 
-def require_v2_integration() -> V2HttpIntegration:
-    """Return the V2 HTTP integration when V2 adoption is explicitly enabled."""
+def require_v2_middleware() -> V2HostMiddleware:
+    """Create the persistent V2 host boundary when V2 adoption is enabled."""
     if not v2_enabled():
         raise V2HostAdoptionError("Phoenix Core V2 is not enabled.")
     try:
-        return V2HttpIntegration.from_environment()
+        return V2HostMiddleware.from_environment()
     except Exception as exc:
         raise V2HostAdoptionError(
             "Phoenix Core V2 is enabled but its HTTP integration is unavailable."
