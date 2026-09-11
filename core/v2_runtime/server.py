@@ -9,7 +9,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from core.app import Handler as LegacyHandler
-from core.app import HOST, PORT, configure_production_module, init_db, read_json
+from core.app import HOST, PORT, read_json
 from core.module_contract import module_catalog
 from core.v2_runtime.feature_switch import v2_enabled
 from core.v2_runtime.http_integration import (
@@ -290,10 +290,6 @@ def build_server():
 
 
 def run():
-    init_db()
-    configure_production_module(
-        r"C:\Users\Disa Lombard\OneDrive - Upat\Upat\Phoenix App\Phoenix_App_Production_Module1_V1.0\Phoenix_Production_Module1_V1"
-    )
     server = build_server()
     try:
         print(f"Phoenix application host running at {APP_BASE_URL}")
