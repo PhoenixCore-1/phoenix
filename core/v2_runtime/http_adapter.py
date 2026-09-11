@@ -22,10 +22,7 @@ class V2HttpAdapter:
     @staticmethod
     def _normalise_response(response: Any) -> dict[str, Any]:
         if hasattr(response, "data"):
-            return {
-                "data": response.data,
-                "request_id": getattr(response, "request_id", None),
-            }
+            return {"data": response.data, "request_id": getattr(response, "request_id", None)}
         if hasattr(response, "__dataclass_fields__"):
             return asdict(response)
         return {"data": response}
@@ -41,23 +38,23 @@ class V2HttpAdapter:
         return self._normalise_response(response)
 
     def current_context(self, *, session_id: str, organisation_id: str) -> dict[str, Any]:
-        session = UUID(session_id)
-        organisation = UUID(organisation_id)
+        session = str(session_id)
+        organisation = str(organisation_id)
         request_id = self._request_id()
-        identity = self.runtime.runtime.api.get_current_identity(
+        identity = self.runtime.current_identity(
             request_id=request_id, session_id=session, organisation_id=organisation
         )
-        user = self.runtime.runtime.api.get_current_user(
+        user = self.runtime.current_user(
             request_id=request_id, session_id=session, organisation_id=organisation
         )
-        organisation_response = self.runtime.runtime.api.get_current_organisation(
+        organisation_data = self.runtime.current_organisation(
             request_id=request_id, session_id=session, organisation_id=organisation
         )
         return {
             "authenticated": True,
-            "identity": identity.data,
-            "user": user.data,
-            "organisation": organisation_response.data,
+            "identity": identity,
+            "user": user,
+            "organisation": organisation_data,
             "request_id": request_id,
         }
 
