@@ -1,9 +1,12 @@
-"""V2-aware HTTP server entry point for Phoenix User UI migration."""
+"""Single Phoenix application HTTP host for Core V2 and platform workspaces."""
 
 from __future__ import annotations
 
 import json
+import mimetypes
+import os
 from http.server import ThreadingHTTPServer
+from pathlib import Path
 
 from core.app import Handler as LegacyHandler
 from core.app import HOST, PORT, configure_production_module, init_db, read_json
@@ -18,10 +21,19 @@ from core.v2_runtime.http_integration import (
     clear_v2_cookies,
     cookie_value,
 )
+from core.v2_runtime.platform_gateway import (
+    PlatformGatewayError,
+    authorize_platform_entry,
+    requested_platform,
+)
 from core.v2_runtime.route_boundary import decide_v2_route
 
 V2_SESSION_COOKIE = "phoenix_v2_session"
 V2_ORGANISATION_COOKIE = "phoenix_v2_organisation"
+PUBLIC_BASE_URL = os.getenv("PHOENIX_PUBLIC_BASE_URL", "https://corephoenix.co.za").rstrip("/")
+APP_BASE_URL = os.getenv("PHOENIX_APP_BASE_URL", "https://app.corephoenix.co.za").rstrip("/")
+USER_UI_ROOT = Path(__file__).resolve().parents[2] / "user_ui"
+CORE_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _send_json(handler, payload, status=200, cookies=()):
@@ -36,26 +48,55 @@ def _send_json(handler, payload, status=200, cookies=()):
     handler.wfile.write(body)
 
 
+def _redirect(handler, location, status=302):
+    handler.send_response(status)
+    handler.send_header("Location", location)
+    handler.send_header("Cache-Control", "no-store")
+    handler.end_headers()
+
+
 def _route_blocked(handler, decision):
-    _send_json(
-        handler,
-        {"ok": False, "code": decision.code, "error": decision.message},
-        status=503,
-    )
+    _send_json(handler, {"ok": False, "code": decision.code, "error": decision.message}, status=503)
 
 
 def _module_catalog_for_entitlements(entitlements):
     """Return only registered modules authorised by the Core context."""
     allowed = {str(code) for code in (entitlements or [])}
-    return [
-        module
-        for module in module_catalog()
-        if module.get("code") in allowed
-    ]
+    return [module for module in module_catalog() if module.get("code") in allowed]
+
+
+def _is_configured_host(handler, expected_url):
+    expected_host = expected_url.split("://", 1)[-1].split("/", 1)[0].lower()
+    request_host = handler.headers.get("Host", "").lower()
+    return request_host == expected_host or request_host.split(":", 1)[0] == expected_host
+
+
+def _user_ui_file(path):
+    """Resolve a /user/* URL strictly inside user_ui."""
+    relative = path[len("/user/"):] if path.startswith("/user/") else ""
+    if not relative:
+        relative = "index.html"
+    candidate = (USER_UI_ROOT / relative).resolve()
+    try:
+        candidate.relative_to(USER_UI_ROOT.resolve())
+    except ValueError:
+        return None
+    return candidate if candidate.is_file() else None
+
+
+def _serve_file(handler, file_path):
+    data = file_path.read_bytes()
+    content_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+    handler.send_response(200)
+    handler.send_header("Content-Type", content_type)
+    handler.send_header("Cache-Control", "no-cache")
+    handler.send_header("Content-Length", str(len(data)))
+    handler.end_headers()
+    handler.wfile.write(data)
 
 
 class V2Handler(LegacyHandler):
-    """Existing HTTP doorway with V2-owned authentication/session routes."""
+    """Single HTTP doorway with V2 authentication and platform routing."""
 
     def _v2(self):
         integration = getattr(self.server, "phoenix_v2_integration", None)
@@ -84,8 +125,65 @@ class V2Handler(LegacyHandler):
         platform = destination.get("data") or destination
         return session_id, organisation_id, context, platform
 
+    def _authorize_platform(self, path):
+        requested = requested_platform(path)
+        if requested is None:
+            return None
+        cookie_header = self.headers.get("Cookie")
+        session_id = cookie_value(cookie_header, V2_SESSION_COOKIE)
+        organisation_id = cookie_value(cookie_header, V2_ORGANISATION_COOKIE)
+        if not session_id or not organisation_id:
+            if path.rstrip("/") == "/user":
+                _redirect(self, f"{PUBLIC_BASE_URL}/")
+            else:
+                _send_json(self, {"ok": False, "code": "AUTH_REQUIRED", "error": "Sign in required."}, 401)
+            return False
+        try:
+            entry = authorize_platform_entry(self._v2(), requested, session_id, organisation_id)
+        except PlatformGatewayError:
+            _send_json(self, {"ok": False, "code": "PLATFORM_UNAVAILABLE", "error": "Phoenix platform authorization is unavailable."}, 503)
+            return False
+        if not entry.allowed:
+            _send_json(self, {"ok": False, "code": entry.code, "error": entry.message}, entry.status)
+            return False
+        return entry
+
+    def _serve_user_platform(self, path):
+        entry = self._authorize_platform(path)
+        if entry is False:
+            return True
+        if entry is None:
+            return False
+        file_path = _user_ui_file(path)
+        if file_path is None:
+            _send_json(self, {"ok": False, "code": "USER_UI_NOT_FOUND", "error": "User workspace resource not found."}, 404)
+            return True
+        _serve_file(self, file_path)
+        return True
+
     def do_GET(self):
         path = self.path.split("?", 1)[0]
+
+        if _is_configured_host(self, APP_BASE_URL) and path == "/":
+            try:
+                self._authenticated_context()
+                _redirect(self, "/user")
+            except Exception:
+                _redirect(self, f"{PUBLIC_BASE_URL}/")
+            return
+
+        if _is_configured_host(self, APP_BASE_URL) and path == "/login":
+            login_page = CORE_ROOT / "index.html"
+            if login_page.is_file():
+                _serve_file(self, login_page)
+                return
+
+        if path == "/user" or path.startswith("/user/"):
+            if not self._enforce_route_boundary("GET", "/user"):
+                return
+            self._serve_user_platform(path)
+            return
+
         if not self._enforce_route_boundary("GET", path):
             return
         if path == "/api/session" and v2_enabled():
@@ -98,20 +196,17 @@ class V2Handler(LegacyHandler):
                     "context": context,
                     "platform": platform,
                 })
-            except Exception as exc:
-                _send_json(self, {"error": str(exc), "code": "V2_SESSION_UNAVAILABLE"}, 401)
+            except Exception:
+                _send_json(self, {"error": "Authenticated V2 session context is unavailable.", "code": "V2_SESSION_UNAVAILABLE"}, 401)
             return
 
         if path == "/api/module-catalog" and v2_enabled():
             try:
                 _, _, _, platform = self._authenticated_context()
                 catalog = _module_catalog_for_entitlements(platform.get("entitlements", []))
-                _send_json(self, {
-                    "ok": True,
-                    "catalog": catalog,
-                })
-            except Exception as exc:
-                _send_json(self, {"error": str(exc), "code": "V2_MODULE_CATALOG_UNAVAILABLE"}, 401)
+                _send_json(self, {"ok": True, "catalog": catalog})
+            except Exception:
+                _send_json(self, {"error": "Authorized module catalog is unavailable.", "code": "V2_MODULE_CATALOG_UNAVAILABLE"}, 401)
             return
 
         super().do_GET()
@@ -153,8 +248,8 @@ class V2Handler(LegacyHandler):
                     "platform": platform,
                     "destination": platform.get("destination"),
                 }, cookies=cookies)
-            except Exception as exc:
-                _send_json(self, {"error": str(exc), "code": "AUTHENTICATION_FAILED"}, 401)
+            except Exception:
+                _send_json(self, {"error": "Authentication failed.", "code": "AUTHENTICATION_FAILED"}, 401)
             return
 
         if path == "/api/logout" and v2_enabled():
@@ -173,7 +268,7 @@ class V2Handler(LegacyHandler):
 
 
 def build_server():
-    """Create the HTTP doorway with one persistent Core V2 integration."""
+    """Create the one persistent Phoenix application HTTP doorway."""
     if not v2_enabled():
         raise V2HttpIntegrationError("Phoenix Core V2 is not enabled.")
     integration = V2HttpIntegration.from_environment()
@@ -193,7 +288,7 @@ def run():
     )
     server = build_server()
     try:
-        print(f"Phoenix Core V2 host running at http://localhost:{PORT}")
+        print(f"Phoenix application host running at {APP_BASE_URL}")
         server.serve_forever()
     finally:
         server.phoenix_v2_integration.close()
