@@ -9,6 +9,7 @@ import { renderSecurityWorkspace } from "./core/security-workspace.js";
 import { renderIntegrationTestWorkspace } from "./core/integration-test-workspace.js";
 import { renderAIWorkspace } from "./core/ai-workspace.js";
 import { renderCommunicationWorkspace } from "./core/communication-workspace.js";
+import { renderSearchWorkspace } from "./core/search-workspace.js";
 import { renderProductionWorkspace } from "./modules/production/production-workspace.js";
 
 /* Phoenix User UI V0.1 — Core service and module workspace controller. */
@@ -35,6 +36,7 @@ function navigate(route) {
   if (route === "integration-tests") { renderIntegrationTestWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/integration-tests"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   if (route === "ai") { renderAIWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/ai"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   if (route === "communication") { renderCommunicationWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/communication"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "search") { renderSearchWorkspace({ workspaceView }); setActive(""); history.replaceState({ route }, "", "#/search"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   renderError("Workspace unavailable", "The requested workspace is not registered.");
 }
 
@@ -62,7 +64,7 @@ function openCoreService(serviceCode) {
   if (serviceCode === "notifications") return navigate("notifications");
   if (serviceCode === "ai") return navigate("ai");
   if (serviceCode === "communication") return navigate("communication");
-  if (serviceCode === "search") return renderError("Search unavailable", "The Global Search workspace is ready, but its header route is not yet connected to the Core Search service.");
+  if (serviceCode === "search") return navigate("search");
   return renderError("Service unavailable", "The requested Core service is not registered.");
 }
 function handleHeaderAction(action) { if (action === "profile") return navigate("profile"); openCoreService(action); }
