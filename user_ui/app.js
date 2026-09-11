@@ -7,6 +7,8 @@ import { renderNotificationsWorkspace } from "./core/notifications-workspace.js"
 import { renderProfileWorkspace } from "./core/profile-workspace.js";
 import { renderSecurityWorkspace } from "./core/security-workspace.js";
 import { renderIntegrationTestWorkspace } from "./core/integration-test-workspace.js";
+import { renderAIWorkspace } from "./core/ai-workspace.js";
+import { renderCommunicationWorkspace } from "./core/communication-workspace.js";
 import { renderProductionWorkspace } from "./modules/production/production-workspace.js";
 
 /* Phoenix User UI V0.1 — Core service and module workspace controller. */
@@ -24,27 +26,15 @@ function setActive(route) { document.querySelectorAll("[data-route]").forEach((i
 function navigate(route) {
   const module = moduleFromMenuRoute(phoenixContext.authorizedModules, route);
   if (module) return openModule(module, route);
-  if (route === "home") {
-    renderHomeWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(route); history.replaceState({ route }, "", "#/home"); document.getElementById("workspace").focus({ preventScroll: true }); return;
-  }
-  if (route === "my-work") {
-    renderMyWorkWorkspace({ workspaceView, userId: phoenixContext.user.id }); setActive(route); history.replaceState({ route }, "", "#/my-work"); document.getElementById("workspace").focus({ preventScroll: true }); return;
-  }
-  if (route === "documents") {
-    renderDocumentsWorkspace({ workspaceView }); setActive(route); history.replaceState({ route }, "", "#/documents"); document.getElementById("workspace").focus({ preventScroll: true }); return;
-  }
-  if (route === "notifications") {
-    renderNotificationsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/notifications"); document.getElementById("workspace").focus({ preventScroll: true }); return;
-  }
-  if (route === "profile") {
-    renderProfileWorkspace({ workspaceView, context: phoenixContext }); setActive(route); history.replaceState({ route }, "", "#/profile"); document.getElementById("workspace").focus({ preventScroll: true }); return;
-  }
-  if (route === "security") {
-    renderSecurityWorkspace({ workspaceView, session: phoenixContext.session, authorizedModules: phoenixContext.authorizedModules }); setActive(""); history.replaceState({ route }, "", "#/security"); document.getElementById("workspace").focus({ preventScroll: true }); return;
-  }
-  if (route === "integration-tests") {
-    renderIntegrationTestWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/integration-tests"); document.getElementById("workspace").focus({ preventScroll: true }); return;
-  }
+  if (route === "home") { renderHomeWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(route); history.replaceState({ route }, "", "#/home"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "my-work") { renderMyWorkWorkspace({ workspaceView, userId: phoenixContext.user.id }); setActive(route); history.replaceState({ route }, "", "#/my-work"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "documents") { renderDocumentsWorkspace({ workspaceView }); setActive(route); history.replaceState({ route }, "", "#/documents"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "notifications") { renderNotificationsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/notifications"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "profile") { renderProfileWorkspace({ workspaceView, context: phoenixContext }); setActive(route); history.replaceState({ route }, "", "#/profile"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "security") { renderSecurityWorkspace({ workspaceView, session: phoenixContext.session, authorizedModules: phoenixContext.authorizedModules }); setActive(""); history.replaceState({ route }, "", "#/security"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "integration-tests") { renderIntegrationTestWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/integration-tests"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "ai") { renderAIWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/ai"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "communication") { renderCommunicationWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/communication"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   renderError("Workspace unavailable", "The requested workspace is not registered.");
 }
 
@@ -70,11 +60,10 @@ function renderAuthorizedModules() {
 
 function openCoreService(serviceCode) {
   if (serviceCode === "notifications") return navigate("notifications");
-  const descriptions = { search: ["Global Search", "Search across authorized Phoenix content and return permission-aware results."], ai: ["AI", "Open the Phoenix AI workspace using the Core AI service boundary."], communication: ["Communication", "Open communication using the Core communication service boundary."] };
-  const service = descriptions[serviceCode];
-  if (!service) return renderError("Service unavailable", "The requested Core service is not registered.");
-  workspaceView.innerHTML = `<header class="workspace-header"><div><p class="eyebrow">Phoenix Core</p><h1 class="workspace-title">${service[0]}</h1><p class="workspace-subtitle">${service[1]}</p></div></header><section class="card panel"><div class="empty-state"><div><strong>Core service entry ready</strong>This is the User UI boundary. The live service implementation will be connected through the Core/API layer without direct database access.</div></div></section>`;
-  document.querySelectorAll("[data-route]").forEach((item) => item.classList.remove("active"));
+  if (serviceCode === "ai") return navigate("ai");
+  if (serviceCode === "communication") return navigate("communication");
+  if (serviceCode === "search") return renderError("Search unavailable", "The Global Search workspace is ready, but its header route is not yet connected to the Core Search service.");
+  return renderError("Service unavailable", "The requested Core service is not registered.");
 }
 function handleHeaderAction(action) { if (action === "profile") return navigate("profile"); openCoreService(action); }
 
