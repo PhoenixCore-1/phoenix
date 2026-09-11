@@ -2,6 +2,7 @@ import { getHostModuleCatalog, moduleFromMenuRoute } from "./core/module-registr
 import { coreServiceAdapter } from "./core/core-service-adapter.js";
 import { renderHomeWorkspace } from "./core/home-workspace.js";
 import { renderMyWorkWorkspace } from "./core/my-work-workspace.js";
+import { renderDocumentsWorkspace } from "./core/documents-workspace.js";
 import { renderNotificationsWorkspace } from "./core/notifications-workspace.js";
 import { renderProfileWorkspace } from "./core/profile-workspace.js";
 import { renderSecurityWorkspace } from "./core/security-workspace.js";
@@ -29,6 +30,9 @@ function navigate(route) {
   if (route === "my-work") {
     renderMyWorkWorkspace({ workspaceView, userId: phoenixContext.user.id }); setActive(route); history.replaceState({ route }, "", "#/my-work"); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
+  if (route === "documents") {
+    renderDocumentsWorkspace({ workspaceView }); setActive(route); history.replaceState({ route }, "", "#/documents"); document.getElementById("workspace").focus({ preventScroll: true }); return;
+  }
   if (route === "notifications") {
     renderNotificationsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/notifications"); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
@@ -40,10 +44,6 @@ function navigate(route) {
   }
   if (route === "integration-tests") {
     renderIntegrationTestWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/integration-tests"); document.getElementById("workspace").focus({ preventScroll: true }); return;
-  }
-  if (route === "documents") {
-    workspaceView.innerHTML = `<header class="workspace-header"><div><p class="eyebrow">Phoenix Core</p><h1 class="workspace-title">Documents</h1><p class="workspace-subtitle">Access documents available to you within the current tenant context.</p></div></header><section class="card panel"><div class="empty-state"><div><strong>Documents service pending</strong>Document discovery will use the Core/API service boundary when its HTTP route is exposed.</div></div></section>`;
-    setActive(route); history.replaceState({ route }, "", "#/documents"); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
   renderError("Workspace unavailable", "The requested workspace is not registered.");
 }
@@ -100,7 +100,7 @@ async function boot() {
     coreServiceAdapter.setContext({ sessionId: session?.session_id ?? session?.sessionId, token: session?.token, organisationId: phoenixContext.user.organisation_id });
     const catalog = await coreServiceAdapter.getAuthorizedModuleCatalog(); window.PhoenixCoreModuleCatalog = catalog; phoenixContext.authorizedModules = getHostModuleCatalog();
   } catch (error) {
-    phoenixContext.authorizedModules = getHostModuleCatalog(); renderError("Phoenix session unavailable", error?.message || "The authenticated Core service could not be reached.");
+    phoenixContext.authorizedModules = []; renderError("Phoenix session unavailable", error?.message || "The authenticated Core service could not be reached.");
   }
   tenantName.textContent = phoenixContext.tenant.name; userName.textContent = phoenixContext.user.displayName; renderAuthorizedModules();
   navigate(location.hash.replace(/^#\//, "") || "home");
