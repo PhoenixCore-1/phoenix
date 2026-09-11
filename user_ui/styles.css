@@ -22,7 +22,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .app-shell { min-height: 100vh; display: grid; grid-template-columns: 250px 1fr; grid-template-rows: 72px 1fr; }
 .core-header { grid-column: 1 / -1; display: flex; align-items: center; gap: 28px; padding: 0 24px; color: #fff; background: var(--phoenix-navy); border-bottom: 1px solid rgba(255,255,255,.08); }
 .brand-block { display: flex; align-items: center; gap: 12px; min-width: 250px; }
-.brand-mark { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid rgba(216,168,62,.7); color: var(--phoenix-gold); font-weight: 800; font-size: 21px; }
+.brand-logo { width: 38px; height: 38px; display: block; object-fit: contain; flex: 0 0 38px; }
 .brand-name { letter-spacing: .14em; font-size: 15px; font-weight: 800; }
 .brand-subtitle { color: #aeb9ca; font-size: 11px; margin-top: 2px; }
 .tenant-context { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
