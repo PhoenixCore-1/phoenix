@@ -31,9 +31,16 @@ class V2RuntimeAdapter:
                 "PHOENIX_CORE_V2_PATH is not configured."
             )
 
-        path = str(Path(root).expanduser().resolve())
-        if path not in sys.path:
-            sys.path.insert(0, path)
+        root_path = Path(root).expanduser().resolve()
+        candidates = [root_path]
+        src_path = root_path / "src"
+        if src_path.is_dir():
+            candidates.append(src_path)
+
+        for candidate in candidates:
+            path = str(candidate)
+            if path not in sys.path:
+                sys.path.insert(0, path)
 
         try:
             from phoenix_core.runtime import build_runtime
@@ -85,3 +92,8 @@ class V2RuntimeAdapter:
             request_id=request_id,
             token=token,
         )
+
+    def close(self):
+        """Release the V2 runtime resources owned by this adapter."""
+        if self.runtime is not None and hasattr(self.runtime, "close"):
+            self.runtime.close()
