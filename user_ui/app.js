@@ -6,6 +6,7 @@ import { renderDocumentsWorkspace } from "./core/documents-workspace.js";
 import { renderNotificationsWorkspace } from "./core/notifications-workspace.js";
 import { renderProfileWorkspace } from "./core/profile-workspace.js";
 import { renderSecurityWorkspace } from "./core/security-workspace.js";
+import { renderDevicesSessionsWorkspace } from "./core/devices-sessions-workspace.js";
 import { renderIntegrationTestWorkspace } from "./core/integration-test-workspace.js";
 import { renderAIWorkspace } from "./core/ai-workspace.js";
 import { renderCommunicationWorkspace } from "./core/communication-workspace.js";
@@ -33,6 +34,7 @@ function navigate(route) {
   if (route === "notifications") { renderNotificationsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/notifications"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   if (route === "profile") { renderProfileWorkspace({ workspaceView, context: phoenixContext }); setActive(route); history.replaceState({ route }, "", "#/profile"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   if (route === "security") { renderSecurityWorkspace({ workspaceView, session: phoenixContext.session, authorizedModules: phoenixContext.authorizedModules }); setActive(""); history.replaceState({ route }, "", "#/security"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "devices-sessions") { renderDevicesSessionsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/devices-sessions"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   if (route === "integration-tests") { renderIntegrationTestWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/integration-tests"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   if (route === "ai") { renderAIWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/ai"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   if (route === "communication") { renderCommunicationWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/communication"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
