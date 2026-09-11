@@ -86,8 +86,20 @@ class V2RuntimeAdapter:
             organisation_id=(UUID(str(organisation_id)) if organisation_id else None),
         )
 
+    def resolve_platform_destination(self, *, request_id, session_id, organisation_id):
+        """Resolve the landing platform through authoritative Core V2 context."""
+        response = self.handle(
+            V2Request(
+                request_id=request_id,
+                operation="platform.destination.resolve",
+                session_id=UUID(str(session_id)),
+                organisation_id=UUID(str(organisation_id)),
+            )
+        )
+        return response.data
+
     def revoke_session(self, *, request_id, token):
-        """Terminate a session through the authoritative V2 API."""
+        """Terminate a V2 session through the authoritative V2 API."""
         return self.runtime.api.revoke_session(
             request_id=request_id,
             token=token,
