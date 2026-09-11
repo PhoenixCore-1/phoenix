@@ -3,6 +3,7 @@ import {
   productionServiceState
 } from "./production-module-adapter.js";
 import { renderProductionOrdersWorkspace } from "./production-orders-workspace.js";
+import { renderProductionOrderDetailWorkspace } from "./production-order-detail-workspace.js";
 
 /* Production module workspace renderer.
  * Business rules remain in the Production Module. This file owns only
@@ -48,6 +49,28 @@ export function renderProductionWorkspace({ workspaceView, module }) {
       }
 
       panel.innerHTML = productionOverviewMarkup(productionServiceState());
+    });
+  });
+
+  workspaceView.addEventListener("phoenix:production-order-open", async (event) => {
+    const orderId = event.detail?.orderId;
+    if (!orderId) return;
+    await renderProductionOrderDetailWorkspace({
+      workspaceView: workspaceView.querySelector("#production-workspace-panel"),
+      module,
+      orderId
+    });
+  });
+
+  workspaceView.addEventListener("phoenix:production-orders-back", async () => {
+    const ordersTab = workspaceView.querySelector('[data-production-route="orders"]');
+    ordersTab?.classList.add("active");
+    workspaceView.querySelectorAll("[data-production-route]").forEach((item) => {
+      item.classList.toggle("active", item === ordersTab);
+    });
+    await renderProductionOrdersWorkspace({
+      workspaceView: workspaceView.querySelector("#production-workspace-panel"),
+      module
     });
   });
 }
