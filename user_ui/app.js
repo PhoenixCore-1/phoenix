@@ -1,5 +1,6 @@
 import { getHostModuleCatalog, moduleFromMenuRoute } from "./core/module-registry-adapter.js";
 import { coreServiceAdapter } from "./core/core-service-adapter.js";
+import { renderMyWorkWorkspace } from "./core/my-work-workspace.js";
 import { renderProductionWorkspace } from "./modules/production/production-workspace.js";
 
 /* Phoenix User UI V0.1 — Core service and module workspace controller.
@@ -14,8 +15,7 @@ const phoenixContext = {
 };
 
 const views = {
-  home: { eyebrow: "Phoenix Core", title: "Home", subtitle: "Your Phoenix workspace at a glance.", body: `<div class="card-grid"><article class="card kpi"><div class="kpi-label">Open Work</div><div class="kpi-value">—</div><div class="kpi-note">Awaiting Core data</div></article><article class="card kpi"><div class="kpi-label">Attention</div><div class="kpi-value">—</div><div class="kpi-note">Awaiting Core data</div></article><article class="card kpi"><div class="kpi-label">Notifications</div><div class="kpi-value">—</div><div class="kpi-note">Awaiting Core data</div></article><article class="card kpi"><div class="kpi-label">Modules</div><div class="kpi-value" id="module-count">0</div><div class="kpi-note">Authorized modules</div></article></div><div class="content-grid"><section class="card panel"><h2 class="panel-title">My Workspace</h2><p class="panel-subtitle">Personal work and context will appear here.</p><div class="empty-state"><div><strong>No live workspace data yet</strong>The shell is ready for the Core service integration.</div></div></section><section class="card panel"><h2 class="panel-title">Attention</h2><p class="panel-subtitle">Items requiring your attention.</p><div class="empty-state"><div><strong>No attention items</strong>Attention data will be supplied by Core.</div></div></section></div>` },
-  "my-work": { eyebrow: "User Workspace", title: "My Work", subtitle: "A single place for work, attention items and actionable context.", body: `<section class="card panel"><div class="empty-state"><div><strong>My Work is ready</strong>Core-backed tasks, attention items and related records will appear here.</div></div></section>` },
+  home: { eyebrow: "Phoenix Core", title: "Home", subtitle: "Your Phoenix workspace at a glance.", body: `<div class="card-grid"><article class="card kpi"><div class="kpi-label">Open Work</div><div class="kpi-value">—</div><div class="kpi-note">Open My Work to load Core data</div></article><article class="card kpi"><div class="kpi-label">Attention</div><div class="kpi-value">—</div><div class="kpi-note">Open My Work to load Core data</div></article><article class="card kpi"><div class="kpi-label">Notifications</div><div class="kpi-value">—</div><div class="kpi-note">Supplied by Core</div></article><article class="card kpi"><div class="kpi-label">Modules</div><div class="kpi-value" id="module-count">0</div><div class="kpi-note">Authorized modules</div></article></div><div class="content-grid"><section class="card panel"><h2 class="panel-title">My Workspace</h2><p class="panel-subtitle">Personal work and context.</p><div class="empty-state"><div><strong>Open My Work</strong>Your Core-backed tasks and attention items are available there.</div></div></section><section class="card panel"><h2 class="panel-title">Attention</h2><p class="panel-subtitle">Items requiring your attention.</p><div class="empty-state"><div><strong>Open My Work</strong>Actionable workflow items are presented in one place.</div></div></section></div>` },
   documents: { eyebrow: "Core Service", title: "Documents", subtitle: "Access documents available to you within the current tenant context.", body: `<section class="card panel"><div class="empty-state"><div><strong>No documents loaded</strong>Document discovery will use the Core/API service boundary.</div></div></section>` },
   profile: { eyebrow: "User", title: "Profile", subtitle: "Manage your personal Phoenix workspace and security context.", body: `<div class="content-grid"><section class="card panel"><h2 class="panel-title">My Profile</h2><p class="panel-subtitle">Identity information supplied by Core.</p><div class="empty-state"><div><strong>Profile service not connected</strong>Live profile data will be integrated through Core.</div></div></section><section class="card panel"><h2 class="panel-title">My Security</h2><p class="panel-subtitle">Security and session controls.</p><div class="empty-state"><div><strong>Security service not connected</strong>Authentication and session controls remain Core-owned.</div></div></section></div>` }
 };
@@ -52,6 +52,13 @@ function setActive(route) {
 function navigate(route) {
   const module = moduleFromMenuRoute(phoenixContext.authorizedModules, route);
   if (module) return openModule(module, route);
+  if (route === "my-work") {
+    renderMyWorkWorkspace({ workspaceView, userId: phoenixContext.user.id });
+    setActive(route);
+    history.replaceState({ route }, "", `#/${route}`);
+    document.getElementById("workspace").focus({ preventScroll: true });
+    return;
+  }
   if (!views[route]) return renderError("Workspace unavailable", "The requested workspace is not registered.");
   renderView(route);
   setActive(route);
@@ -101,6 +108,19 @@ function handleHeaderAction(action) {
   if (action === "profile") return navigate("profile");
   openCoreService(action);
 }
+
+window.addEventListener("phoenix:my-work-open", (event) => {
+  const detail = event.detail || {};
+  if (detail.entityType === "production" && detail.entityId) {
+    const module = phoenixContext.authorizedModules.find((item) => item.code === "production");
+    if (module) {
+      openModule(module, module.menu[0]?.route || "/production");
+      window.dispatchEvent(new CustomEvent("phoenix:production-order-open", { detail: { orderId: detail.entityId } }));
+      return;
+    }
+  }
+  renderError("Related workspace unavailable", "The related record is not currently registered for this User UI session.");
+});
 
 document.querySelectorAll("[data-route]").forEach((item) => item.addEventListener("click", () => navigate(item.dataset.route)));
 document.querySelectorAll("[data-action]").forEach((item) => item.addEventListener("click", () => handleHeaderAction(item.dataset.action)));
