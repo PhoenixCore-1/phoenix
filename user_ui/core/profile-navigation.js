@@ -1,4 +1,4 @@
-/* Phoenix User UI V0.1 — Profile navigation registry. */
+/* Phoenix User UI V0.1 — shared Profile navigation registry. */
 export const PROFILE_SCREENS = Object.freeze([
   { route: "profile", label: "My Profile" },
   { route: "profile-preferences", label: "Preferences" },
@@ -13,6 +13,6 @@ export const PROFILE_SCREENS = Object.freeze([
 
 export function renderProfileNavigation(container, navigate, activeRoute = "profile") {
   if (!container) return;
-  container.innerHTML = PROFILE_SCREENS.map((screen) => `<button class="profile-nav-item ${screen.route === activeRoute ? "active" : ""}" type="button" data-profile-route="${screen.route}">${screen.label}</button>`).join("");
+  container.innerHTML = `<nav class="profile-nav" aria-label="Profile sections">${PROFILE_SCREENS.map((screen) => `<button class="profile-nav-item ${screen.route === activeRoute ? "active" : ""}" type="button" data-profile-route="${screen.route}">${screen.label}</button>`).join("")}</nav>`;
   container.querySelectorAll("[data-profile-route]").forEach((item) => item.addEventListener("click", () => navigate(item.dataset.profileRoute)));
 }
