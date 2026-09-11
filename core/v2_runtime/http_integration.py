@@ -80,7 +80,7 @@ def cookie_value(cookie_header: str | None, name: str) -> str | None:
 
 
 def _cookie(name: str, value: str, *, remember_me: bool = False) -> str:
-    cookie = f"{name}={value}; HttpOnly; SameSite=Lax; Path=/"
+    cookie = f"{name}={value}; HttpOnly; Secure; SameSite=Lax; Path=/"
     if remember_me:
         cookie += f"; Max-Age={30 * 24 * 60 * 60}"
     return cookie
@@ -99,7 +99,7 @@ def build_organisation_cookie(organisation_id: str, *, remember_me: bool = False
 
 
 def clear_v2_cookies() -> tuple[str, str, str]:
-    expiry = "; HttpOnly; SameSite=Lax; Path=/; Max-Age=0"
+    expiry = "; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0"
     return (
         f"{V2_SESSION_COOKIE}=;{expiry}",
         f"{V2_TOKEN_COOKIE}=;{expiry}",
