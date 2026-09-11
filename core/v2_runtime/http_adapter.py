@@ -10,10 +10,9 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from .adapter import V2RuntimeAdapter
-from .contracts import V2Request
 
 
 class V2HttpAdapter:
@@ -21,10 +20,6 @@ class V2HttpAdapter:
 
     def __init__(self, runtime: V2RuntimeAdapter):
         self.runtime = runtime
-
-    @staticmethod
-    def _request_id() -> str:
-        return str(uuid4())
 
     @staticmethod
     def _normalise_response(response: Any) -> dict[str, Any]:
@@ -47,7 +42,7 @@ class V2HttpAdapter:
         """Authenticate through V2 and return only the Core response data."""
         organisation = UUID(organisation_id) if organisation_id else None
         response = self.runtime.authenticate(
-            request_id=self._request_id(),
+            request_id=self.runtime_request_id(),
             username=username,
             password=password,
             organisation_id=organisation,
@@ -63,7 +58,7 @@ class V2HttpAdapter:
         """Return the authoritative V2 identity, user and organisation context."""
         session = UUID(session_id)
         organisation = UUID(organisation_id)
-        request_id = self._request_id()
+        request_id = self.runtime_request_id()
         identity = self.runtime.runtime.api.get_current_identity(
             request_id=request_id,
             session_id=session,
@@ -94,19 +89,24 @@ class V2HttpAdapter:
         organisation_id: str,
     ) -> dict[str, Any]:
         """Ask Core V2 to resolve the authenticated platform destination."""
-        request = V2Request(
-            request_id=self._request_id(),
-            operation="platform.destination.resolve",
-            session_id=UUID(session_id),
-            organisation_id=UUID(organisation_id),
+        response = self.runtime.resolve_platform_destination(
+            request_id=self.runtime_request_id(),
+            session_id=session_id,
+            organisation_id=organisation_id,
         )
-        response = self.runtime.handle(request)
-        return self._normalise_response(response)
+        if hasattr(response, "data"):
+            return response.data
+        return response
 
     def revoke_session(self, *, token: str) -> dict[str, Any]:
         """Terminate a V2 session through CoreApi."""
-        response = self.runtime.runtime.api.revoke_session(
-            request_id=self._request_id(),
+        response = self.runtime.revoke_session(
+            request_id=self.runtime_request_id(),
             token=token,
         )
         return self._normalise_response(response)
+
+    @staticmethod
+    def runtime_request_id() -> str:
+        from uuid import uuid4
+        return str(uuid4())
