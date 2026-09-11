@@ -39,6 +39,29 @@ export const coreServiceAdapter = {
     const injected = window.PhoenixCoreApi?.getAuthorizedModuleCatalog;
     return typeof injected === "function" ? injected() : request(`${CORE_API_BASE}/module-catalog`);
   },
+  async getMyWork(userId) {
+    const injected = window.PhoenixCoreApi?.getMyWork;
+    if (typeof injected === "function") return injected(userId);
+
+    const [tasks, notifications] = await Promise.all([
+      request(`${CORE_API_BASE}/workflow/tasks?status=Open`),
+      request(`${CORE_API_BASE}/notifications`, { headers: { "X-Unread-Only": "1" } })
+    ]);
+
+    const assignedTasks = Array.isArray(tasks)
+      ? tasks.filter((task) => String(task.assigned_to ?? "") === String(userId ?? ""))
+      : [];
+
+    return {
+      tasks: assignedTasks,
+      notifications: Array.isArray(notifications) ? notifications : []
+    };
+  },
+  async completeWorkflowTask(taskId, notes = null) {
+    const injected = window.PhoenixCoreApi?.completeWorkflowTask;
+    if (typeof injected === "function") return injected(taskId, notes);
+    throw new Error("Core workflow task completion endpoint is not connected yet.");
+  },
   async search(query = {}) {
     const injected = window.PhoenixCoreApi?.search;
     if (typeof injected === "function") return injected(query);
