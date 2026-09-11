@@ -18,6 +18,9 @@ from core.v2_runtime.http_integration import (
     cookie_value,
 )
 
+V2_SESSION_COOKIE = "phoenix_v2_session"
+V2_ORGANISATION_COOKIE = "phoenix_v2_organisation"
+
 
 def _send_json(handler, payload, status=200, cookies=()):
     body = json.dumps(payload, default=str).encode("utf-8")
@@ -45,8 +48,8 @@ class V2Handler(LegacyHandler):
         if path == "/api/session" and v2_enabled():
             try:
                 cookie_header = self.headers.get("Cookie")
-                session_id = cookie_value(cookie_header, "phoenix_v2_session")
-                organisation_id = cookie_value(cookie_header, "phoenix_v2_organisation")
+                session_id = cookie_value(cookie_header, V2_SESSION_COOKIE)
+                organisation_id = cookie_value(cookie_header, V2_ORGANISATION_COOKIE)
                 if not session_id or not organisation_id:
                     _send_json(self, {"authenticated": False, "code": "AUTH_REQUIRED"}, 401)
                     return
@@ -121,7 +124,11 @@ def build_server():
     if not v2_enabled():
         raise V2HttpIntegrationError("Phoenix Core V2 is not enabled.")
     integration = V2HttpIntegration.from_environment()
-    server = ThreadingHTTPServer((HOST, PORT), V2Handler)
+    try:
+        server = ThreadingHTTPServer((HOST, PORT), V2Handler)
+    except Exception:
+        integration.close()
+        raise
     server.phoenix_v2_integration = integration
     return server
 
