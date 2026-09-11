@@ -5,37 +5,38 @@ This module owns only the V2 authentication decision and authoritative context
 resolution. It never falls back to legacy authentication when V2 is enabled.
 """
 
-from uuid import UUID
-
-from .http_bridge import V2AuthenticationBridge
+from .http_adapter import V2HttpAdapter
 
 
 class V2HttpAuth:
     """Small host-facing facade for V2 login, session and logout."""
 
-    def __init__(self, bridge: V2AuthenticationBridge):
-        self.bridge = bridge
+    def __init__(self, adapter: V2HttpAdapter):
+        self.adapter = adapter
 
     @classmethod
-    def from_environment(cls):
-        return cls(V2AuthenticationBridge.from_environment())
+    def from_runtime(cls, runtime_adapter):
+        return cls(V2HttpAdapter(runtime_adapter))
 
     def login(self, username, password, organisation_id=None):
-        return self.bridge.authenticate(username, password, organisation_id)
+        return self.adapter.authenticate(
+            username=username,
+            password=password,
+            organisation_id=organisation_id,
+        )
 
-    def session(self, token, session_id, organisation_id):
-        if not token:
-            raise ValueError("Authenticated V2 session token is required.")
+    def session(self, session_id, organisation_id):
         if not session_id or not organisation_id:
             raise ValueError("V2 session requires session_id and organisation_id.")
-        return self.bridge.current_context(
-            UUID(str(session_id)), UUID(str(organisation_id))
+        return self.adapter.current_context(
+            session_id=session_id,
+            organisation_id=organisation_id,
         )
 
     def logout(self, token):
         if not token:
             raise ValueError("Authenticated V2 session token is required.")
-        return self.bridge.revoke(token)
+        return self.adapter.revoke_session(token=token)
 
     def close(self):
-        self.bridge.close()
+        self.adapter.runtime.close()
