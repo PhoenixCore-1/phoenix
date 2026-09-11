@@ -1,16 +1,14 @@
-/* Phoenix User UI V0.1
- * Module discovery adapter.
+/* Phoenix User UI V0.1 — module discovery adapter.
  *
  * The browser consumes a sanitized Core/API response. It does not import
  * Python modules, inspect the database, or decide authorization itself.
  */
 
-export function normalizeModuleCatalog(catalog, authorization = {}) {
+export function normalizeModuleCatalog(catalog) {
   if (!Array.isArray(catalog)) return [];
 
   return catalog
     .filter((module) => module && module.code && module.name)
-    .filter((module) => authorization[module.code] !== false)
     .map((module) => ({
       code: String(module.code),
       name: String(module.name),
@@ -33,6 +31,10 @@ export function normalizeModuleCatalog(catalog, authorization = {}) {
       const bOrder = b.menu[0]?.order ?? 100;
       return aOrder - bOrder || a.name.localeCompare(b.name);
     });
+}
+
+export function getHostModuleCatalog() {
+  return normalizeModuleCatalog(window.PhoenixCoreModuleCatalog);
 }
 
 export function moduleFromMenuRoute(modules, route) {
