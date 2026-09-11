@@ -1,8 +1,9 @@
 import { getHostModuleCatalog, moduleFromMenuRoute } from "./core/module-registry-adapter.js";
+import { coreServiceAdapter } from "./core/core-service-adapter.js";
 import { renderProductionWorkspace } from "./modules/production/production-workspace.js";
 
 /* Phoenix User UI V0.1 — Core service and module workspace controller.
- * The browser receives sanitized, already-authorized context from the host/API.
+ * The browser receives sanitized, already-authorized context from Core/API.
  * It never imports business modules or accesses storage directly.
  */
 
@@ -105,11 +106,31 @@ document.querySelectorAll("[data-route]").forEach((item) => item.addEventListene
 document.querySelectorAll("[data-action]").forEach((item) => item.addEventListener("click", () => handleHeaderAction(item.dataset.action)));
 window.addEventListener("popstate", () => navigate(location.hash.replace(/^#\//, "") || "home"));
 
-function boot() {
+async function boot() {
+  try {
+    const session = await coreServiceAdapter.getUserContext();
+    const user = session?.user || {};
+    phoenixContext.tenant = {
+      id: user.organisation_id ?? null,
+      name: user.organisation_name || "Current Tenant"
+    };
+    phoenixContext.user = {
+      id: user.user_id ?? null,
+      displayName: user.display_name || user.username || "User"
+    };
+
+    const catalog = await coreServiceAdapter.getAuthorizedModuleCatalog();
+    window.PhoenixCoreModuleCatalog = catalog;
+    phoenixContext.authorizedModules = getHostModuleCatalog();
+  } catch (error) {
+    phoenixContext.authorizedModules = getHostModuleCatalog();
+    renderError("Phoenix session unavailable", error?.message || "The authenticated Core service could not be reached.");
+  }
+
   tenantName.textContent = phoenixContext.tenant.name;
   userName.textContent = phoenixContext.user.displayName;
-  phoenixContext.authorizedModules = getHostModuleCatalog();
   renderAuthorizedModules();
+
   const initialRoute = location.hash.replace(/^#\//, "") || "home";
   navigate(initialRoute);
 }
