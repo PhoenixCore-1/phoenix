@@ -1,9 +1,8 @@
 /* Phoenix User UI -> Production integration boundary.
  *
- * This adapter is deliberately UI-facing only. It does not import the
- * Python Production package, open a database, or implement production
- * business rules. Live reads/actions are expected to arrive through the
- * Core/API module contract.
+ * The adapter never imports the Python Production package and never opens
+ * the database. It consumes the existing Phoenix Core HTTP API, while still
+ * allowing a host application to inject window.PhoenixCoreApi.production.
  */
 
 export const PRODUCTION_MODULE_CODE = "production";
@@ -17,6 +16,8 @@ export const PRODUCTION_ACTIONS = Object.freeze([
   "complete"
 ]);
 
+const CORE_PRODUCTION_BASE = "/api/production";
+
 export function getProductionContract(moduleMetadata) {
   if (!moduleMetadata || moduleMetadata.code !== PRODUCTION_MODULE_CODE) {
     throw new Error("Production module is not available in this session.");
@@ -29,19 +30,127 @@ export function getProductionContract(moduleMetadata) {
     uiContractVersion: PRODUCTION_UI_CONTRACT_VERSION,
     menu: Array.isArray(moduleMetadata.menu) ? moduleMetadata.menu : [],
     permissions: Array.isArray(moduleMetadata.permissions) ? moduleMetadata.permissions : [],
-    actions: Array.isArray(moduleMetadata.actions)
-      ? moduleMetadata.actions
-      : []
+    actions: Array.isArray(moduleMetadata.actions) ? moduleMetadata.actions : []
+  };
+}
+
+function coreHttpProductionApi() {
+  const request = async (path, options = {}) => {
+    const response = await fetch(path, {
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      },
+      ...options
+    });
+
+    let body = null;
+    try {
+      body = await response.json();
+    } catch (_) {
+      body = null;
+    }
+
+    if (!response.ok) {
+      const message = body?.error || `Phoenix Core API request failed (${response.status}).`;
+      const error = new Error(message);
+      error.status = response.status;
+      error.code = body?.code;
+      throw error;
+    }
+
+    return body;
+  };
+
+  return {
+    async listOrders(query = {}) {
+      const params = new URLSearchParams();
+      if (query.search) params.set("q", query.search);
+      return request(`${CORE_PRODUCTION_BASE}/orders${params.toString() ? `?${params}` : ""}`);
+    },
+
+    async getOrder(orderId) {
+      return request(`${CORE_PRODUCTION_BASE}/orders/${encodeURIComponent(orderId)}`);
+    },
+
+    async getStages(orderId) {
+      const order = await request(`${CORE_PRODUCTION_BASE}/orders/${encodeURIComponent(orderId)}`);
+      return order?.stages || [];
+    },
+
+    async executeAction({ action, orderId, payload = {}, idempotencyKey, correlationId }) {
+      const headers = {
+        "X-Phoenix-Idempotency-Key": idempotencyKey,
+        "X-Phoenix-Correlation-Id": correlationId
+      };
+
+      const body = JSON.stringify(payload || {});
+      const id = encodeURIComponent(orderId);
+
+      if (action === "release") {
+        return request(`${CORE_PRODUCTION_BASE}/orders/${id}/release`, {
+          method: "POST",
+          headers,
+          body: "{}"
+        });
+      }
+
+      if (action === "start") {
+        return request(`${CORE_PRODUCTION_BASE}/orders/${id}/start`, {
+          method: "POST",
+          headers,
+          body: "{}"
+        });
+      }
+
+      const stageId = payload.stageId ?? payload.stage_id;
+      if (!stageId) {
+        throw new Error(`Production ${action} requires the current stage.`);
+      }
+
+      if (action === "hold") {
+        return request(`${CORE_PRODUCTION_BASE}/orders/${id}/stages/${encodeURIComponent(stageId)}/hold`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            problem_type: payload.problemType || payload.problem_type || "Production Problem",
+            description: payload.reason || payload.description || "Production hold requested",
+            affected_quantity: payload.affectedQuantity ?? payload.affected_quantity ?? 0
+          })
+        });
+      }
+
+      if (action === "resume") {
+        return request(`${CORE_PRODUCTION_BASE}/orders/${id}/stages/${encodeURIComponent(stageId)}/resume`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            resolution: payload.resolution || "Production resumed"
+          })
+        });
+      }
+
+      if (action === "complete") {
+        return request(`${CORE_PRODUCTION_BASE}/orders/${id}/stages/${encodeURIComponent(stageId)}/finish`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            completed_qty: payload.completedQty ?? payload.completed_qty ?? 0,
+            rejected_qty: payload.rejectedQty ?? payload.rejected_qty ?? 0,
+            notes: payload.notes || ""
+          })
+        });
+      }
+
+      throw new Error("Unsupported Production action.");
+    }
   };
 }
 
 export function getProductionApi() {
-  const api = window.PhoenixCoreApi?.production;
-  if (!api) {
-    return null;
-  }
-
-  return api;
+  return window.PhoenixCoreApi?.production || coreHttpProductionApi();
 }
 
 export function productionServiceState() {
@@ -50,40 +159,27 @@ export function productionServiceState() {
 
 export async function listProductionOrders(query = {}) {
   const api = getProductionApi();
-  if (!api?.listOrders) {
-    throw new Error("Production Orders service is not connected.");
-  }
-
+  if (!api?.listOrders) throw new Error("Production Orders service is not connected.");
   return api.listOrders(query);
 }
 
 export async function getProductionOrder(orderId) {
   const api = getProductionApi();
-  if (!api?.getOrder) {
-    throw new Error("Production Order service is not connected.");
-  }
-
+  if (!api?.getOrder) throw new Error("Production Order service is not connected.");
   return api.getOrder(orderId);
 }
 
 export async function getProductionStages(orderId) {
   const api = getProductionApi();
-  if (!api?.getStages) {
-    throw new Error("Production Stages service is not connected.");
-  }
-
+  if (!api?.getStages) throw new Error("Production Stages service is not connected.");
   return api.getStages(orderId);
 }
 
 export async function executeProductionAction(action, orderId, payload = {}) {
-  if (!PRODUCTION_ACTIONS.includes(action)) {
-    throw new Error("Unsupported Production action.");
-  }
+  if (!PRODUCTION_ACTIONS.includes(action)) throw new Error("Unsupported Production action.");
 
   const api = getProductionApi();
-  if (!api?.executeAction) {
-    throw new Error("Production action service is not connected.");
-  }
+  if (!api?.executeAction) throw new Error("Production action service is not connected.");
 
   return api.executeAction({
     action,
