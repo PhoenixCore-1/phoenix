@@ -1,25 +1,57 @@
-/* Phoenix User UI V0.1 — lightweight browser integration harness. */
+/* Phoenix User UI V0.1 — browser integration harness.
+ * PASS means a check was actually verified. BLOCKED means the required
+ * authoritative Core capability was not available to execute the check.
+ */
+
+const BLOCKED = "BLOCKED";
+const PASS = "PASS";
+const FAIL = "FAIL";
+
+function result(id, label, state, detail) {
+  return { id, label, state, passed: state === PASS, detail };
+}
 
 export async function runCoreIntegrationChecks({ coreServiceAdapter, moduleCatalogAdapter }) {
   const results = [];
 
   try {
     const session = await coreServiceAdapter.getUserContext();
-    results.push({ id: "AUTH-02", label: "Authenticated Core session", passed: Boolean(session?.user), detail: session?.user ? "Authenticated user context received." : "Core returned no user context." });
-    results.push({ id: "TEN-01", label: "Tenant context", passed: Boolean(session?.user?.organisation_id), detail: session?.user?.organisation_id ? "Organisation context received from Core." : "Organisation context missing." });
+    if (session?.user) {
+      results.push(result("AUTH-02", "Authenticated Core session", PASS, "Authenticated user context received."));
+    } else {
+      results.push(result("AUTH-02", "Authenticated Core session", FAIL, "Core returned no user context."));
+    }
+
+    if (session?.user?.organisation_id) {
+      results.push(result("TEN-01", "Tenant context", PASS, "Organisation context received from Core."));
+    } else {
+      results.push(result("TEN-01", "Tenant context", FAIL, "Organisation context missing."));
+    }
 
     try {
       const catalog = await coreServiceAdapter.getAuthorizedModuleCatalog();
       const modules = moduleCatalogAdapter(catalog);
-      results.push({ id: "MOD-01", label: "Authorized module catalog", passed: Array.isArray(modules), detail: `${Array.isArray(modules) ? modules.length : 0} authorized module(s) exposed.` });
+      results.push(Array.isArray(modules)
+        ? result("MOD-01", "Authorized module catalog", PASS, `${modules.length} authorized module(s) exposed.`)
+        : result("MOD-01", "Authorized module catalog", FAIL, "Core returned an invalid module catalog."));
     } catch (error) {
-      results.push({ id: "MOD-01", label: "Authorized module catalog", passed: false, detail: error?.message || "Module catalog request failed." });
+      results.push(result("MOD-01", "Authorized module catalog", FAIL, error?.message || "Module catalog request failed."));
     }
   } catch (error) {
-    const passed = error?.status === 401 || error?.status === 403;
-    results.push({ id: "AUTH-01", label: "Protected session boundary", passed, detail: passed ? "Protected Core endpoint correctly rejected unauthenticated access." : (error?.message || "Session request failed unexpectedly.") });
-    results.push({ id: "AUTH-02", label: "Authenticated Core session", passed: false, detail: "Authenticated session could not be established." });
+    if (error?.status === 401 || error?.status === 403) {
+      results.push(result("AUTH-01", "Protected session boundary", PASS, "Protected Core endpoint correctly rejected unauthenticated access."));
+      results.push(result("AUTH-02", "Authenticated Core session", BLOCKED, "Authenticated Core session could not be established in this runtime."));
+      results.push(result("TEN-01", "Tenant context", BLOCKED, "Tenant context cannot be verified without an authenticated Core session."));
+      results.push(result("MOD-01", "Authorized module catalog", BLOCKED, "Module authorization cannot be verified without an authenticated Core session."));
+    } else {
+      results.push(result("AUTH-01", "Protected session boundary", BLOCKED, "The harness could not establish the runtime state required to test unauthenticated rejection."));
+      results.push(result("AUTH-02", "Authenticated Core session", BLOCKED, error?.message || "Authenticated session could not be established."));
+      results.push(result("TEN-01", "Tenant context", BLOCKED, "Tenant context cannot be verified until the Core session is available."));
+      results.push(result("MOD-01", "Authorized module catalog", BLOCKED, "Module authorization cannot be verified until the Core session is available."));
+    }
   }
 
   return results;
 }
+
+export { BLOCKED, PASS, FAIL };
