@@ -4,38 +4,48 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Phoenix — System Platform</title>
-  <style>
-    :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f6fa}
-    *{box-sizing:border-box}body{margin:0;min-height:100vh}.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}.side{background:#101a2e;color:#fff;padding:24px}.brand{font-weight:700;font-size:20px;margin-bottom:8px}.platform{font-size:12px;opacity:.7;margin-bottom:32px}.nav{display:grid;gap:8px}.nav a{color:#dce4f5;text-decoration:none;padding:10px 12px;border-radius:8px}.nav a:hover{background:#1d2b47}.main{padding:32px;max-width:1200px;width:100%}.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#64748b}.title{margin:6px 0;font-size:32px}.subtitle{color:#64748b}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:28px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(15,23,42,.04)}.card h2{font-size:17px;margin:0 0 8px}.card p{color:#64748b;font-size:14px;line-height:1.5;margin:0}.note{margin-top:24px;padding:14px 16px;border-left:3px solid #d6a84f;background:#fff;color:#475569;font-size:13px}@media(max-width:720px){.shell{grid-template-columns:1fr}.side{padding:16px}.main{padding:20px}}
-  </style>
+  <link rel="stylesheet" href="../shared/platform-shell.css">
 </head>
 <body>
-  <div class="shell">
-    <aside class="side">
-      <div class="brand">Phoenix</div>
-      <div class="platform">System Platform</div>
-      <nav class="nav" aria-label="System Platform navigation">
-        <a href="/system">Dashboard</a>
-        <a href="/system/identities">Identity &amp; Access</a>
-        <a href="/system/health">System Health</a>
-        <a href="/system/activity">Platform Activity</a>
-        <a href="/system/configuration">System Configuration</a>
-        <a href="/system/reports">Reporting</a>
-        <a href="/user">User Platform</a>
-      </nav>
-    </aside>
-    <main class="main">
-      <div class="eyebrow">Authenticated Phoenix workspace</div>
-      <h1 class="title">System Platform</h1>
-      <p class="subtitle">Platform-level administration, health and oversight.</p>
-      <section class="grid">
-        <article class="card"><h2>Identity &amp; Access</h2><p>Access authorised platform-level identity and access administration.</p></article>
-        <article class="card"><h2>System Health</h2><p>Review authorised Phoenix platform health and operational status.</p></article>
-        <article class="card"><h2>Platform Activity</h2><p>Review platform-level activity and audit information.</p></article>
-        <article class="card"><h2>System Configuration</h2><p>Access authorised system-level configuration controls.</p></article>
-      </section>
-      <div class="note">This is the System Platform UI entry shell. Authentication, authorisation, platform authority and data access remain outside the browser and are enforced by Phoenix Core and the platform application layer.</div>
-    </main>
+  <div class="platform-shell">
+    <header class="platform-header">
+      <div class="platform-brand"><span class="platform-brand-mark">PHOENIX</span><span class="platform-brand-context">System Platform</span></div>
+      <div class="platform-header-actions"><a class="platform-header-link active" href="/system">System</a><a class="platform-header-link" href="/user">User</a></div>
+    </header>
+    <div class="platform-body">
+      <aside class="platform-sidebar">
+        <nav aria-label="System Platform navigation">
+          <a class="active" href="/system">Dashboard</a>
+          <a href="/system/identities">Identity &amp; Access</a>
+          <a href="/system/health">System Health</a>
+          <a href="/system/activity">Platform Activity</a>
+          <a href="/system/configuration">System Configuration</a>
+          <a href="/system/reports">Reporting</a>
+        </nav>
+        <div id="platform-switcher"></div>
+      </aside>
+      <main class="platform-content">
+        <div class="platform-eyebrow">Authenticated Phoenix workspace</div>
+        <h1 class="platform-title">System Platform</h1>
+        <p class="platform-subtitle">Platform-level administration, health and oversight.</p>
+        <section class="platform-card-grid">
+          <article class="platform-card"><h2>Identity &amp; Access</h2><p>Access authorised platform-level identity and access administration.</p></article>
+          <article class="platform-card"><h2>System Health</h2><p>Review authorised Phoenix platform health and operational status.</p></article>
+          <article class="platform-card"><h2>Platform Activity</h2><p>Review platform-level activity and audit information.</p></article>
+          <article class="platform-card"><h2>System Configuration</h2><p>Access authorised system-level configuration controls.</p></article>
+        </section>
+        <div class="platform-note">Authentication, authorisation, platform authority and data access remain outside the browser and are enforced by Phoenix Core and the platform application layer.</div>
+      </main>
+    </div>
   </div>
+  <script type="module">
+    import { currentPlatform, loadAuthorizedPlatforms, renderPlatformSwitcher } from "../shared/platform-navigation.js";
+    try {
+      const allowed = await loadAuthorizedPlatforms();
+      renderPlatformSwitcher(document.getElementById("platform-switcher"), allowed, currentPlatform());
+    } catch (_) {
+      // The HTTP gateway remains authoritative if session context cannot be loaded.
+    }
+  </script>
 </body>
 </html>
