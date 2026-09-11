@@ -4,6 +4,11 @@ const PLATFORM_PATHS = Object.freeze({
   SYSTEM: "/system",
 });
 
+const PLATFORM_PERMISSIONS = Object.freeze({
+  COMPANY: "platform.company.access",
+  SYSTEM: "platform.system.access",
+});
+
 export function currentPlatform(pathname = window.location.pathname) {
   if (pathname === PLATFORM_PATHS.COMPANY || pathname.startsWith(`${PLATFORM_PATHS.COMPANY}/`)) return "COMPANY";
   if (pathname === PLATFORM_PATHS.SYSTEM || pathname.startsWith(`${PLATFORM_PATHS.SYSTEM}/`)) return "SYSTEM";
@@ -13,6 +18,11 @@ export function currentPlatform(pathname = window.location.pathname) {
 
 export function platformLabel(platform) {
   return ({ USER: "User Workspace", COMPANY: "Company Platform", SYSTEM: "System Platform" })[platform] || "Phoenix";
+}
+
+export function authorizedPlatforms(sessionData) {
+  const permissions = new Set(sessionData?.platform?.permissions || sessionData?.permissions || []);
+  return ["USER", "COMPANY", "SYSTEM"].filter((platform) => platform === "USER" || permissions.has(PLATFORM_PERMISSIONS[platform]));
 }
 
 export function platformLinks(allowedPlatforms = []) {
@@ -41,4 +51,10 @@ export function renderPlatformSwitcher(container, allowedPlatforms, activePlatfo
     link.setAttribute("aria-current", item.platform === activePlatform ? "page" : "false");
     container.appendChild(link);
   }
+}
+
+export async function loadAuthorizedPlatforms() {
+  const response = await fetch("/api/session", { credentials: "same-origin", cache: "no-store" });
+  if (!response.ok) throw new Error("Phoenix session context unavailable.");
+  return authorizedPlatforms(await response.json());
 }
