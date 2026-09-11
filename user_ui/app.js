@@ -3,11 +3,12 @@ import { coreServiceAdapter } from "./core/core-service-adapter.js";
 import { renderMyWorkWorkspace } from "./core/my-work-workspace.js";
 import { renderNotificationsWorkspace } from "./core/notifications-workspace.js";
 import { renderProfileWorkspace } from "./core/profile-workspace.js";
+import { renderSecurityWorkspace } from "./core/security-workspace.js";
 import { renderProductionWorkspace } from "./modules/production/production-workspace.js";
 
 /* Phoenix User UI V0.1 — Core service and module workspace controller. */
 
-const phoenixContext = { tenant: { id: null, name: "Current Tenant" }, user: { id: null, displayName: "User" }, authorizedModules: [] };
+const phoenixContext = { tenant: { id: null, name: "Current Tenant" }, user: { id: null, displayName: "User" }, authorizedModules: [], session: null };
 
 const views = {
   home: { eyebrow: "Phoenix Core", title: "Home", subtitle: "Your Phoenix workspace at a glance.", body: `<div class="card-grid"><article class="card kpi"><div class="kpi-label">Open Work</div><div class="kpi-value">—</div><div class="kpi-note">Open My Work to load Core data</div></article><article class="card kpi"><div class="kpi-label">Attention</div><div class="kpi-value">—</div><div class="kpi-note">Open My Work to load Core data</div></article><article class="card kpi"><div class="kpi-label">Notifications</div><div class="kpi-value">—</div><div class="kpi-note">Supplied by Core</div></article><article class="card kpi"><div class="kpi-label">Modules</div><div class="kpi-value" id="module-count">0</div><div class="kpi-note">Authorized modules</div></article></div><div class="content-grid"><section class="card panel"><h2 class="panel-title">My Workspace</h2><p class="panel-subtitle">Personal work and context.</p><div class="empty-state"><div><strong>Open My Work</strong>Your Core-backed tasks and attention items are available there.</div></div></section><section class="card panel"><h2 class="panel-title">Attention</h2><p class="panel-subtitle">Items requiring your attention.</p><div class="empty-state"><div><strong>Open My Work</strong>Actionable workflow items are presented in one place.</div></div></section></div>` },
@@ -41,16 +42,16 @@ function navigate(route) {
   const module = moduleFromMenuRoute(phoenixContext.authorizedModules, route);
   if (module) return openModule(module, route);
   if (route === "my-work") {
-    renderMyWorkWorkspace({ workspaceView, userId: phoenixContext.user.id });
-    setActive(route); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
+    renderMyWorkWorkspace({ workspaceView, userId: phoenixContext.user.id }); setActive(route); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
   if (route === "notifications") {
-    renderNotificationsWorkspace({ workspaceView, coreServiceAdapter });
-    setActive(""); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
+    renderNotificationsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
   if (route === "profile") {
-    renderProfileWorkspace({ workspaceView, context: phoenixContext });
-    setActive(route); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
+    renderProfileWorkspace({ workspaceView, context: phoenixContext }); setActive(route); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
+  }
+  if (route === "security") {
+    renderSecurityWorkspace({ workspaceView, session: phoenixContext.session, authorizedModules: phoenixContext.authorizedModules }); setActive(""); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
   if (!views[route]) return renderError("Workspace unavailable", "The requested workspace is not registered.");
   renderView(route); setActive(route); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true });
@@ -100,7 +101,8 @@ window.addEventListener("popstate", () => navigate(location.hash.replace(/^#\//,
 
 async function boot() {
   try {
-    const session = await coreServiceAdapter.getUserContext(); const user = session?.user || {};
+    const session = await coreServiceAdapter.getUserContext(); phoenixContext.session = session;
+    const user = session?.user || {};
     phoenixContext.tenant = { id: user.organisation_id ?? null, name: user.organisation_name || "Current Tenant" };
     phoenixContext.user = { id: user.user_id ?? null, username: user.username ?? null, displayName: user.display_name || user.username || "User", display_name: user.display_name, user_id: user.user_id, organisation_id: user.organisation_id, organisation_name: user.organisation_name };
     const catalog = await coreServiceAdapter.getAuthorizedModuleCatalog(); window.PhoenixCoreModuleCatalog = catalog; phoenixContext.authorizedModules = getHostModuleCatalog();
