@@ -1,3 +1,5 @@
+import { renderProfileNavigation } from "./profile-navigation.js";
+
 /* Phoenix User UI V0.1 — Devices & Sessions workspace.
  * Session authority remains in Phoenix Core. No client-side session store is used.
  */
@@ -11,11 +13,12 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-export async function renderDevicesSessionsWorkspace({ workspaceView, coreServiceAdapter }) {
+export async function renderDevicesSessionsWorkspace({ workspaceView, coreServiceAdapter, navigate }) {
   workspaceView.innerHTML = `
     <header class="workspace-header">
       <div><p class="eyebrow">Security</p><h1 class="workspace-title">Devices &amp; Sessions</h1><p class="workspace-subtitle">Review active access to your Phoenix account. Session validity is determined by Phoenix Core.</p></div>
     </header>
+    <div data-profile-navigation></div>
     <section class="card panel">
       <div class="panel-heading-row"><div><h2 class="panel-title">Active Sessions</h2><p class="panel-subtitle">Only Core-authoritative session data may be displayed here.</p></div><button class="button secondary" type="button" data-refresh>Refresh</button></div>
       <div class="status" data-session-status role="status" aria-live="polite">Loading session information…</div>
@@ -27,6 +30,7 @@ export async function renderDevicesSessionsWorkspace({ workspaceView, coreServic
       <ul class="security-list"><li>Authentication and expiry are enforced by Phoenix Core.</li><li>Session revocation must be performed by the authoritative Core service.</li><li>No passwords, tokens or session records are stored in this workspace.</li></ul>
     </section>`;
 
+  renderProfileNavigation(workspaceView.querySelector("[data-profile-navigation]"), navigate, "devices-sessions");
   const status = workspaceView.querySelector("[data-session-status]");
   const list = workspaceView.querySelector("[data-session-list]");
   const load = async () => {
