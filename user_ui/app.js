@@ -4,6 +4,7 @@ import { renderMyWorkWorkspace } from "./core/my-work-workspace.js";
 import { renderNotificationsWorkspace } from "./core/notifications-workspace.js";
 import { renderProfileWorkspace } from "./core/profile-workspace.js";
 import { renderSecurityWorkspace } from "./core/security-workspace.js";
+import { renderIntegrationTestWorkspace } from "./core/integration-test-workspace.js";
 import { renderProductionWorkspace } from "./modules/production/production-workspace.js";
 
 /* Phoenix User UI V0.1 — Core service and module workspace controller. */
@@ -52,6 +53,9 @@ function navigate(route) {
   }
   if (route === "security") {
     renderSecurityWorkspace({ workspaceView, session: phoenixContext.session, authorizedModules: phoenixContext.authorizedModules }); setActive(""); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
+  }
+  if (route === "integration-tests") {
+    renderIntegrationTestWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
   if (!views[route]) return renderError("Workspace unavailable", "The requested workspace is not registered.");
   renderView(route); setActive(route); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true });
