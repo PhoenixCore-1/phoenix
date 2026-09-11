@@ -14,13 +14,14 @@ from .http_integration import V2HttpIntegration
 
 
 class V2HostMiddleware:
-    """Host-facing V2 request boundary."""
+    """Host-facing V2 request boundary with one runtime per host lifecycle."""
 
     def __init__(self, integration: V2HttpIntegration):
         self.integration = integration
+        self._closed = False
 
     @classmethod
-    def from_environment(cls):
+    def from_environment(cls) -> "V2HostMiddleware":
         return cls(V2HttpIntegration.from_environment())
 
     @staticmethod
@@ -34,22 +35,29 @@ class V2HostMiddleware:
         organisation_id: str | None = None,
         remember_me: bool = False,
     ) -> dict[str, Any]:
-        """Authenticate through V2 and prepare the authoritative route."""
-        result = self.integration.login(
-            username=username,
-            password=password,
-            organisation_id=organisation_id,
-        )
+        if self._closed:
+            raise RuntimeError("Phoenix Core V2 host middleware is closed.")
+        result = self.integration.login(username, password, organisation_id)
         result["remember_me"] = bool(remember_me)
         return result
 
     def session(self, session_id: str, organisation_id: str) -> dict[str, Any]:
-        """Resolve an existing V2 session and organisation context."""
+        if self._closed:
+            raise RuntimeError("Phoenix Core V2 host middleware is closed.")
         return self.integration.session(session_id, organisation_id)
 
+    def platform_destination(self, session_id: str, organisation_id: str) -> dict[str, Any]:
+        if self._closed:
+            raise RuntimeError("Phoenix Core V2 host middleware is closed.")
+        return self.integration.platform_destination(session_id, organisation_id)
+
     def logout(self, token: str) -> dict[str, Any]:
-        """Revoke an authenticated V2 session."""
+        if self._closed:
+            raise RuntimeError("Phoenix Core V2 host middleware is closed.")
         return self.integration.logout(token)
 
     def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
         self.integration.close()
