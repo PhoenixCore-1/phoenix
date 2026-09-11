@@ -24,11 +24,7 @@ class V2HttpIntegrationError(RuntimeError):
 
 
 class V2HttpIntegration:
-    """Persistent HTTP-facing V2 runtime boundary.
-
-    One instance owns one V2 runtime for the lifetime of the HTTP host. Request
-    handlers reuse this instance; shutdown calls ``close`` exactly once.
-    """
+    """Persistent HTTP-facing V2 runtime boundary."""
 
     def __init__(self, auth: V2HttpAuth):
         self.auth = auth
@@ -83,32 +79,26 @@ def cookie_value(cookie_header: str | None, name: str) -> str | None:
     return morsel.value if morsel else None
 
 
-def build_session_cookie(session_id: str, *, remember_me: bool = False) -> str:
-    """Build the V2 session-context cookie."""
-    cookie = f"{V2_SESSION_COOKIE}={session_id}; HttpOnly; SameSite=Lax; Path=/"
+def _cookie(name: str, value: str, *, remember_me: bool = False) -> str:
+    cookie = f"{name}={value}; HttpOnly; SameSite=Lax; Path=/"
     if remember_me:
         cookie += f"; Max-Age={30 * 24 * 60 * 60}"
     return cookie
+
+
+def build_session_cookie(session_id: str, *, remember_me: bool = False) -> str:
+    return _cookie(V2_SESSION_COOKIE, session_id, remember_me=remember_me)
 
 
 def build_token_cookie(token: str, *, remember_me: bool = False) -> str:
-    """Build the V2 secret session-token cookie used only for revocation."""
-    cookie = f"{V2_TOKEN_COOKIE}={token}; HttpOnly; SameSite=Lax; Path=/"
-    if remember_me:
-        cookie += f"; Max-Age={30 * 24 * 60 * 60}"
-    return cookie
+    return _cookie(V2_TOKEN_COOKIE, token, remember_me=remember_me)
 
 
 def build_organisation_cookie(organisation_id: str, *, remember_me: bool = False) -> str:
-    """Build the non-secret organisation context cookie."""
-    cookie = f"{V2_ORGANISATION_COOKIE}={organisation_id}; HttpOnly; SameSite=Lax; Path=/"
-    if remember_me:
-        cookie += f"; Max-Age={30 * 24 * 60 * 60}"
-    return cookie
+    return _cookie(V2_ORGANISATION_COOKIE, organisation_id, remember_me=remember_me)
 
 
 def clear_v2_cookies() -> tuple[str, str, str]:
-    """Return expiry headers for all V2 session-context cookies."""
     expiry = "; HttpOnly; SameSite=Lax; Path=/; Max-Age=0"
     return (
         f"{V2_SESSION_COOKIE}=;{expiry}",
@@ -117,16 +107,9 @@ def clear_v2_cookies() -> tuple[str, str, str]:
     )
 
 
-def authenticate_v2(
-    username: str,
-    password: str,
-    organisation_id: str | None = None,
-    remember_me: bool = False,
-) -> dict[str, Any]:
-    """Authenticate and resolve the destination entirely through Core V2."""
+def authenticate_v2(username: str, password: str, organisation_id: str | None = None, remember_me: bool = False) -> dict[str, Any]:
     if not v2_enabled():
         raise V2HttpIntegrationError("Phoenix Core V2 is not enabled.")
-
     integration = V2HttpIntegration.from_environment()
     try:
         result = integration.login(username, password, organisation_id)
@@ -144,25 +127,12 @@ def authenticate_v2(
         destination_name = destination_data.get("destination")
         if not destination_name:
             raise V2HttpIntegrationError("Core V2 did not return a platform destination.")
-        return {
-            "authenticated": True,
-            "session_id": str(session_id),
-            "token": str(token),
-            "organisation_id": str(resolved_organisation_id),
-            "context": context,
-            "platform": destination_data,
-            "destination": destination_name,
-            "remember_me": bool(remember_me),
-        }
+        return {"authenticated": True, "session_id": str(session_id), "token": str(token), "organisation_id": str(resolved_organisation_id), "context": context, "platform": destination_data, "destination": destination_name, "remember_me": bool(remember_me)}
     finally:
         integration.close()
 
 
-def current_v2_session(
-    cookie_header: str | None,
-    organisation_id: str | None = None,
-) -> dict[str, Any]:
-    """Resolve the current V2 session from HTTP cookies and Core context."""
+def current_v2_session(cookie_header: str | None, organisation_id: str | None = None) -> dict[str, Any]:
     if not v2_enabled():
         raise V2HttpIntegrationError("Phoenix Core V2 is not enabled.")
     session_id = cookie_value(cookie_header, V2_SESSION_COOKIE)
@@ -173,19 +143,12 @@ def current_v2_session(
     try:
         context = integration.session(session_id, organisation)
         destination = integration.platform_destination(session_id, organisation)
-        destination_data = destination.get("data") or destination
-        return {
-            "session_id": session_id,
-            "organisation_id": organisation,
-            "context": context,
-            "platform": destination_data,
-        }
+        return {"session_id": session_id, "organisation_id": organisation, "context": context, "platform": destination.get("data") or destination}
     finally:
         integration.close()
 
 
 def logout_v2(cookie_header: str | None) -> tuple[bool, tuple[str, str, str]]:
-    """Revoke the V2 session and return cookie-expiry headers."""
     if not v2_enabled():
         raise V2HttpIntegrationError("Phoenix Core V2 is not enabled.")
     token = cookie_value(cookie_header, V2_TOKEN_COOKIE)
