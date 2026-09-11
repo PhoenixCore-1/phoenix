@@ -5,6 +5,8 @@
  * allowing a host application to inject window.PhoenixCoreApi.production.
  */
 
+import { getCoreRequest } from "../../core/core-service-adapter.js";
+
 export const PRODUCTION_MODULE_CODE = "production";
 export const PRODUCTION_UI_CONTRACT_VERSION = "1.0";
 
@@ -35,34 +37,7 @@ export function getProductionContract(moduleMetadata) {
 }
 
 function coreHttpProductionApi() {
-  const request = async (path, options = {}) => {
-    const response = await fetch(path, {
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        ...(options.headers || {})
-      },
-      ...options
-    });
-
-    let body = null;
-    try {
-      body = await response.json();
-    } catch (_) {
-      body = null;
-    }
-
-    if (!response.ok) {
-      const message = body?.error || `Phoenix Core API request failed (${response.status}).`;
-      const error = new Error(message);
-      error.status = response.status;
-      error.code = body?.code;
-      throw error;
-    }
-
-    return body;
-  };
+  const request = getCoreRequest();
 
   return {
     async listOrders(query = {}) {
@@ -85,8 +60,6 @@ function coreHttpProductionApi() {
         "X-Phoenix-Idempotency-Key": idempotencyKey,
         "X-Phoenix-Correlation-Id": correlationId
       };
-
-      const body = JSON.stringify(payload || {});
       const id = encodeURIComponent(orderId);
 
       if (action === "release") {
@@ -106,9 +79,7 @@ function coreHttpProductionApi() {
       }
 
       const stageId = payload.stageId ?? payload.stage_id;
-      if (!stageId) {
-        throw new Error(`Production ${action} requires the current stage.`);
-      }
+      if (!stageId) throw new Error(`Production ${action} requires the current stage.`);
 
       if (action === "hold") {
         return request(`${CORE_PRODUCTION_BASE}/orders/${id}/stages/${encodeURIComponent(stageId)}/hold`, {
@@ -126,9 +97,7 @@ function coreHttpProductionApi() {
         return request(`${CORE_PRODUCTION_BASE}/orders/${id}/stages/${encodeURIComponent(stageId)}/resume`, {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            resolution: payload.resolution || "Production resumed"
-          })
+          body: JSON.stringify({ resolution: payload.resolution || "Production resumed" })
         });
       }
 
