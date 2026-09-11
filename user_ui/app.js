@@ -27,33 +27,35 @@ const userName = document.getElementById("user-name");
 
 function renderError(title, message) { workspaceView.innerHTML = `<div class="status error"><strong>${title}.</strong> ${message}</div>`; }
 function setActive(route) { document.querySelectorAll("[data-route]").forEach((item) => item.classList.toggle("active", item.dataset.route === route)); }
+function focusWorkspace() { document.getElementById("workspace").focus({ preventScroll: true }); }
+function commitRoute(route) { history.replaceState({ route }, "", `#/${route}`); focusWorkspace(); }
 
 function navigate(route) {
   const module = moduleFromMenuRoute(phoenixContext.authorizedModules, route);
   if (module) return openModule(module, route);
-  if (route === "home") { renderHomeWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(route); history.replaceState({ route }, "", "#/home"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "my-work") { renderMyWorkWorkspace({ workspaceView, userId: phoenixContext.user.id }); setActive(route); history.replaceState({ route }, "", "#/my-work"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "documents") { renderDocumentsWorkspace({ workspaceView }); setActive(route); history.replaceState({ route }, "", "#/documents"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "notifications") { renderNotificationsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/notifications"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "profile") { renderProfileWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(route); history.replaceState({ route }, "", "#/profile"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "profile-preferences") { renderProfilePreferencesWorkspace({ workspaceView, context: phoenixContext }); setActive(""); history.replaceState({ route }, "", "#/profile-preferences"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "sign-out") { renderSignOutWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/sign-out"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "security") { renderSecurityWorkspace({ workspaceView, session: phoenixContext.session, authorizedModules: phoenixContext.authorizedModules }); setActive(""); history.replaceState({ route }, "", "#/security"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "devices-sessions") { renderDevicesSessionsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/devices-sessions"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "activity") { renderActivityWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/activity"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "help-support") { renderHelpSupportWorkspace({ workspaceView }); setActive(""); history.replaceState({ route }, "", "#/help-support"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "about-phoenix") { renderAboutPhoenixWorkspace({ workspaceView, context: phoenixContext }); setActive(""); history.replaceState({ route }, "", "#/about-phoenix"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "integration-tests") { renderIntegrationTestWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/integration-tests"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "ai") { renderAIWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/ai"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "communication") { renderCommunicationWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/communication"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
-  if (route === "search") { renderSearchWorkspace({ workspaceView }); setActive(""); history.replaceState({ route }, "", "#/search"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "home") { renderHomeWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(route); commitRoute(route); return; }
+  if (route === "my-work") { renderMyWorkWorkspace({ workspaceView, userId: phoenixContext.user.id }); setActive(route); commitRoute(route); return; }
+  if (route === "documents") { renderDocumentsWorkspace({ workspaceView }); setActive(route); commitRoute(route); return; }
+  if (route === "notifications") { renderNotificationsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); commitRoute(route); return; }
+  if (route === "profile") { renderProfileWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(route); commitRoute(route); return; }
+  if (route === "profile-preferences") { renderProfilePreferencesWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(""); commitRoute(route); return; }
+  if (route === "sign-out") { renderSignOutWorkspace({ workspaceView, coreServiceAdapter, onSignedOut: () => renderError("Session ended", "Phoenix Core confirmed logout. Please authenticate again to continue.") }); setActive(""); commitRoute(route); return; }
+  if (route === "security") { renderSecurityWorkspace({ workspaceView, session: phoenixContext.session, authorizedModules: phoenixContext.authorizedModules, navigate }); setActive(""); commitRoute(route); return; }
+  if (route === "devices-sessions") { renderDevicesSessionsWorkspace({ workspaceView, coreServiceAdapter, navigate }); setActive(""); commitRoute(route); return; }
+  if (route === "activity") { renderActivityWorkspace({ workspaceView, coreServiceAdapter, navigate }); setActive(""); commitRoute(route); return; }
+  if (route === "help-support") { renderHelpSupportWorkspace({ workspaceView, navigate }); setActive(""); commitRoute(route); return; }
+  if (route === "about-phoenix") { renderAboutPhoenixWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(""); commitRoute(route); return; }
+  if (route === "integration-tests") { renderIntegrationTestWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); commitRoute(route); return; }
+  if (route === "ai") { renderAIWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); commitRoute(route); return; }
+  if (route === "communication") { renderCommunicationWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); commitRoute(route); return; }
+  if (route === "search") { renderSearchWorkspace({ workspaceView }); setActive(""); commitRoute(route); return; }
   renderError("Workspace unavailable", "The requested workspace is not registered.");
 }
 
 function openModule(module, route) {
   if (module.code === "production") renderProductionWorkspace({ workspaceView, module });
   else { const menuItem = module.menu.find((item) => item.route === route) || module.menu[0]; workspaceView.innerHTML = `<header class="workspace-header"><div><p class="eyebrow">Phoenix Module</p><h1 class="workspace-title">${module.name}</h1><p class="workspace-subtitle">${module.description || "Authorized module workspace."}</p></div></header><section class="card panel"><div class="empty-state"><div><strong>Module workspace ready</strong><div>${menuItem?.label || module.name} is registered for this User UI session.</div><div style="margin-top:8px;font-size:11px">Version ${module.version || "—"} · Business UI integration follows the module contract.</div></div></div></section>`; }
-  setActive(module.code); history.replaceState({ route: module.code }, "", `#/${module.code}`); document.getElementById("workspace").focus({ preventScroll: true });
+  setActive(module.code); commitRoute(module.code);
 }
 
 function renderAuthorizedModules() { moduleNavigation.replaceChildren(); const modules = phoenixContext.authorizedModules; moduleEmpty.hidden = modules.length > 0; modules.forEach((module) => { const menuItem = module.menu[0]; if (!menuItem) return; const button = document.createElement("button"); button.className = "nav-item"; button.type = "button"; button.dataset.route = module.code; const icon = document.createElement("span"); icon.className = "nav-icon"; icon.setAttribute("aria-hidden", "true"); icon.textContent = "▦"; const label = document.createElement("span"); label.textContent = menuItem.label || module.name; button.append(icon, label); button.addEventListener("click", () => navigate(module.code)); moduleNavigation.appendChild(button); }); }
