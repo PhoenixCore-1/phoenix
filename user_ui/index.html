@@ -12,56 +12,32 @@
     <header class="core-header">
       <div class="brand-block" aria-label="Phoenix">
         <div class="brand-mark" aria-hidden="true">P</div>
-        <div class="brand-copy">
-          <div class="brand-name">PHOENIX</div>
-          <div class="brand-subtitle">User Workspace</div>
-        </div>
+        <div class="brand-copy"><div class="brand-name">PHOENIX</div><div class="brand-subtitle">User Workspace</div></div>
       </div>
-
-      <div class="tenant-context" aria-label="Current company context">
-        <span class="context-label">Company</span>
-        <strong id="tenant-name">Current Tenant</strong>
-      </div>
-
+      <div class="tenant-context" aria-label="Current company context"><span class="context-label">Company</span><strong id="tenant-name">Current Tenant</strong></div>
       <div class="header-actions" aria-label="Global actions">
         <button class="header-action" type="button" data-action="search" aria-label="Search"><span aria-hidden="true">⌕</span><span class="sr-only">Search</span></button>
         <button class="header-action" type="button" data-action="ai" aria-label="AI assistant"><span class="ai-mark" aria-hidden="true">AI</span><span class="sr-only">AI assistant</span></button>
         <button class="header-action" type="button" data-action="communication" aria-label="Communication"><span aria-hidden="true">◌</span><span class="sr-only">Communication</span></button>
-        <button class="header-action notification-action" type="button" data-action="notifications" aria-label="Notifications">
-          <span aria-hidden="true">♢</span><span class="notification-dot" aria-hidden="true"></span><span class="sr-only">Notifications</span>
-        </button>
-        <button class="profile-button" type="button" data-action="profile" aria-label="Open profile">
-          <span class="avatar" aria-hidden="true">JL</span>
-          <span class="profile-name" id="user-name">User</span>
-        </button>
+        <button class="header-action notification-action" type="button" data-action="notifications" aria-label="Notifications"><span aria-hidden="true">♢</span><span class="notification-dot" aria-hidden="true"></span><span class="sr-only">Notifications</span></button>
+        <button class="profile-button" type="button" data-action="profile" aria-label="Open profile"><span class="avatar" aria-hidden="true">JL</span><span class="profile-name" id="user-name">User</span></button>
       </div>
     </header>
-
     <aside class="side-nav" aria-label="Primary navigation">
       <nav class="primary-nav">
         <button class="nav-item active" type="button" data-route="home"><span class="nav-icon" aria-hidden="true">⌂</span><span>Home</span></button>
         <button class="nav-item" type="button" data-route="my-work"><span class="nav-icon" aria-hidden="true">▣</span><span>My Work</span></button>
         <button class="nav-item" type="button" data-route="documents"><span class="nav-icon" aria-hidden="true">□</span><span>Documents</span></button>
       </nav>
-
       <section class="module-section" aria-labelledby="module-heading">
         <div id="module-heading" class="nav-section-title">Modules</div>
         <div id="module-navigation" class="module-navigation"></div>
         <div id="module-empty" class="nav-empty">No authorized modules</div>
       </section>
-
-      <div class="side-nav-footer">
-        <button class="nav-item" type="button" data-route="profile"><span class="nav-icon" aria-hidden="true">○</span><span>Profile</span></button>
-      </div>
+      <div class="side-nav-footer"><button class="nav-item" type="button" data-route="profile"><span class="nav-icon" aria-hidden="true">○</span><span>Profile</span></button></div>
     </aside>
-
-    <main id="workspace" class="workspace" tabindex="-1">
-      <div class="workspace-content">
-        <div class="workspace-status" id="workspace-status" hidden></div>
-        <section id="workspace-view" aria-live="polite"></section>
-      </div>
-    </main>
+    <main id="workspace" class="workspace" tabindex="-1"><div class="workspace-content"><div class="workspace-status" id="workspace-status" hidden></div><section id="workspace-view" aria-live="polite"></section></div></main>
   </div>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
