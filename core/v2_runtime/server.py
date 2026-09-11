@@ -164,6 +164,14 @@ class V2Handler(LegacyHandler):
     def do_GET(self):
         path = self.path.split("?", 1)[0]
 
+        # Public origin is a presentation-only front door.
+        if _is_configured_host(self, PUBLIC_BASE_URL) and path == "/":
+            landing_page = CORE_ROOT / "landing.html"
+            if landing_page.is_file():
+                _serve_file(self, landing_page)
+                return
+
+        # Application origin is the sole authenticated application host.
         if _is_configured_host(self, APP_BASE_URL) and path == "/":
             try:
                 self._authenticated_context()
