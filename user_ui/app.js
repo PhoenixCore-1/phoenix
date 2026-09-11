@@ -27,6 +27,7 @@ const userName = document.getElementById("user-name");
 
 function renderError(title, message) { workspaceView.innerHTML = `<div class="status error"><strong>${title}.</strong> ${message}</div>`; }
 function setActive(route) { document.querySelectorAll("[data-route]").forEach((item) => item.classList.toggle("active", item.dataset.route === route)); }
+function setProfileActive() { setActive("profile"); }
 function focusWorkspace() { document.getElementById("workspace").focus({ preventScroll: true }); }
 function commitRoute(route) { history.replaceState({ route }, "", `#/${route}`); focusWorkspace(); }
 
@@ -36,15 +37,15 @@ function navigate(route) {
   if (route === "home") { renderHomeWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(route); commitRoute(route); return; }
   if (route === "my-work") { renderMyWorkWorkspace({ workspaceView, userId: phoenixContext.user.id }); setActive(route); commitRoute(route); return; }
   if (route === "documents") { renderDocumentsWorkspace({ workspaceView }); setActive(route); commitRoute(route); return; }
-  if (route === "notifications") { renderNotificationsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); commitRoute(route); return; }
-  if (route === "profile") { renderProfileWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(route); commitRoute(route); return; }
-  if (route === "profile-preferences") { renderProfilePreferencesWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(""); commitRoute(route); return; }
-  if (route === "sign-out") { renderSignOutWorkspace({ workspaceView, coreServiceAdapter, onSignedOut: () => renderError("Session ended", "Phoenix Core confirmed logout. Please authenticate again to continue.") }); setActive(""); commitRoute(route); return; }
-  if (route === "security") { renderSecurityWorkspace({ workspaceView, session: phoenixContext.session, authorizedModules: phoenixContext.authorizedModules, navigate }); setActive(""); commitRoute(route); return; }
-  if (route === "devices-sessions") { renderDevicesSessionsWorkspace({ workspaceView, coreServiceAdapter, navigate }); setActive(""); commitRoute(route); return; }
-  if (route === "activity") { renderActivityWorkspace({ workspaceView, coreServiceAdapter, navigate }); setActive(""); commitRoute(route); return; }
-  if (route === "help-support") { renderHelpSupportWorkspace({ workspaceView, navigate }); setActive(""); commitRoute(route); return; }
-  if (route === "about-phoenix") { renderAboutPhoenixWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(""); commitRoute(route); return; }
+  if (route === "notifications") { renderNotificationsWorkspace({ workspaceView, coreServiceAdapter, navigate }); setProfileActive(); commitRoute(route); return; }
+  if (route === "profile") { renderProfileWorkspace({ workspaceView, context: phoenixContext, navigate }); setProfileActive(); commitRoute(route); return; }
+  if (route === "profile-preferences") { renderProfilePreferencesWorkspace({ workspaceView, context: phoenixContext, navigate }); setProfileActive(); commitRoute(route); return; }
+  if (route === "sign-out") { renderSignOutWorkspace({ workspaceView, coreServiceAdapter, navigate, onSignedOut: () => renderError("Session ended", "Phoenix Core confirmed logout. Please authenticate again to continue.") }); setProfileActive(); commitRoute(route); return; }
+  if (route === "security") { renderSecurityWorkspace({ workspaceView, session: phoenixContext.session, authorizedModules: phoenixContext.authorizedModules, navigate }); setProfileActive(); commitRoute(route); return; }
+  if (route === "devices-sessions") { renderDevicesSessionsWorkspace({ workspaceView, coreServiceAdapter, navigate }); setProfileActive(); commitRoute(route); return; }
+  if (route === "activity") { renderActivityWorkspace({ workspaceView, coreServiceAdapter, navigate }); setProfileActive(); commitRoute(route); return; }
+  if (route === "help-support") { renderHelpSupportWorkspace({ workspaceView, navigate }); setProfileActive(); commitRoute(route); return; }
+  if (route === "about-phoenix") { renderAboutPhoenixWorkspace({ workspaceView, context: phoenixContext, navigate }); setProfileActive(); commitRoute(route); return; }
   if (route === "integration-tests") { renderIntegrationTestWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); commitRoute(route); return; }
   if (route === "ai") { renderAIWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); commitRoute(route); return; }
   if (route === "communication") { renderCommunicationWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); commitRoute(route); return; }
@@ -55,7 +56,7 @@ function navigate(route) {
 function openModule(module, route) {
   if (module.code === "production") renderProductionWorkspace({ workspaceView, module });
   else { const menuItem = module.menu.find((item) => item.route === route) || module.menu[0]; workspaceView.innerHTML = `<header class="workspace-header"><div><p class="eyebrow">Phoenix Module</p><h1 class="workspace-title">${module.name}</h1><p class="workspace-subtitle">${module.description || "Authorized module workspace."}</p></div></header><section class="card panel"><div class="empty-state"><div><strong>Module workspace ready</strong><div>${menuItem?.label || module.name} is registered for this User UI session.</div><div style="margin-top:8px;font-size:11px">Version ${module.version || "—"} · Business UI integration follows the module contract.</div></div></div></section>`; }
-  setActive(module.code); commitRoute(module.code);
+  setActive(module.code); commitRoute(route || module.code);
 }
 
 function renderAuthorizedModules() { moduleNavigation.replaceChildren(); const modules = phoenixContext.authorizedModules; moduleEmpty.hidden = modules.length > 0; modules.forEach((module) => { const menuItem = module.menu[0]; if (!menuItem) return; const button = document.createElement("button"); button.className = "nav-item"; button.type = "button"; button.dataset.route = module.code; const icon = document.createElement("span"); icon.className = "nav-icon"; icon.setAttribute("aria-hidden", "true"); icon.textContent = "▦"; const label = document.createElement("span"); label.textContent = menuItem.label || module.name; button.append(icon, label); button.addEventListener("click", () => navigate(module.code)); moduleNavigation.appendChild(button); }); }
