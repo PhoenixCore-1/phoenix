@@ -40,16 +40,9 @@ export async function getCoreRequest() {
       ...(coreContext.token ? { Authorization: `Bearer ${coreContext.token}` } : {}),
       ...(options.headers || {})
     };
-
-    const response = await fetch(path, {
-      credentials: "same-origin",
-      ...options,
-      headers
-    });
-
+    const response = await fetch(path, { credentials: "same-origin", ...options, headers });
     let body = null;
     try { body = await response.json(); } catch (_) { body = null; }
-
     if (!response.ok) {
       const payload = unwrapApiResponse(body);
       const error = new Error(payload?.error || body?.error || `Phoenix Core API request failed (${response.status}).`);
@@ -75,7 +68,6 @@ export const coreServiceAdapter = {
       if (data?.session_id || data?.sessionId || data?.token || data?.organisation_id || data?.organisationId) setCoreContext(data);
       return data;
     }
-
     const data = await request(`${CORE_API_BASE}/session`);
     if (data?.session_id || data?.sessionId || data?.token || data?.organisation_id || data?.organisationId) setCoreContext(data);
     return data;
@@ -83,25 +75,24 @@ export const coreServiceAdapter = {
 
   async getAuthorizedModuleCatalog() {
     const injected = window.PhoenixCoreApi?.getAuthorizedModuleCatalog;
-    return typeof injected === "function"
-      ? unwrapApiResponse(await injected())
-      : request(`${CORE_API_BASE}/module-catalog`);
+    return typeof injected === "function" ? unwrapApiResponse(await injected()) : request(`${CORE_API_BASE}/module-catalog`);
   },
 
   async getMyWork(userId) {
     const injected = window.PhoenixCoreApi?.getMyWork;
     if (typeof injected === "function") return unwrapApiResponse(await injected(userId));
-
     const [tasks, notifications] = await Promise.all([
       request(`${CORE_API_BASE}/workflow/tasks?status=Open`),
       request(`${CORE_API_BASE}/notifications`, { headers: { "X-Unread-Only": "1" } })
     ]);
-
-    const assignedTasks = Array.isArray(tasks)
-      ? tasks.filter((task) => String(task.assigned_to ?? "") === String(userId ?? ""))
-      : [];
-
+    const assignedTasks = Array.isArray(tasks) ? tasks.filter((task) => String(task.assigned_to ?? "") === String(userId ?? "")) : [];
     return { tasks: assignedTasks, notifications: Array.isArray(notifications) ? notifications : [] };
+  },
+
+  async getDocuments({ query = "", limit = 50, offset = 0 } = {}) {
+    const injected = window.PhoenixCoreApi?.getDocuments;
+    if (typeof injected === "function") return unwrapApiResponse(await injected({ query, limit, offset }));
+    throw new Error("Core Documents HTTP endpoint is not connected yet.");
   },
 
   async completeWorkflowTask(taskId, notes = null) {
