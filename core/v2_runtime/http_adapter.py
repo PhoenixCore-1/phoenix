@@ -13,6 +13,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from .adapter import V2RuntimeAdapter
+from .contracts import V2Request
 
 
 class V2HttpAdapter:
@@ -63,23 +64,21 @@ class V2HttpAdapter:
         session = UUID(session_id)
         organisation = UUID(organisation_id)
         request_id = self._request_id()
-
-        identity = self.runtime.api.get_current_identity(
+        identity = self.runtime.runtime.api.get_current_identity(
             request_id=request_id,
             session_id=session,
             organisation_id=organisation,
         )
-        user = self.runtime.api.get_current_user(
+        user = self.runtime.runtime.api.get_current_user(
             request_id=request_id,
             session_id=session,
             organisation_id=organisation,
         )
-        organisation_response = self.runtime.api.get_current_organisation(
+        organisation_response = self.runtime.runtime.api.get_current_organisation(
             request_id=request_id,
             session_id=session,
             organisation_id=organisation,
         )
-
         return {
             "authenticated": True,
             "identity": identity.data,
@@ -88,9 +87,25 @@ class V2HttpAdapter:
             "request_id": request_id,
         }
 
+    def platform_destination(
+        self,
+        *,
+        session_id: str,
+        organisation_id: str,
+    ) -> dict[str, Any]:
+        """Ask Core V2 to resolve the authenticated platform destination."""
+        request = V2Request(
+            request_id=self._request_id(),
+            operation="platform.destination.resolve",
+            session_id=UUID(session_id),
+            organisation_id=UUID(organisation_id),
+        )
+        response = self.runtime.handle(request)
+        return self._normalise_response(response)
+
     def revoke_session(self, *, token: str) -> dict[str, Any]:
         """Terminate a V2 session through CoreApi."""
-        response = self.runtime.api.revoke_session(
+        response = self.runtime.runtime.api.revoke_session(
             request_id=self._request_id(),
             token=token,
         )
