@@ -1,5 +1,8 @@
-/* Phoenix User UI V0.1 — Core header service-entry layer.
- * UI routes into service boundaries; live Core/API implementations are separate.
+import { getHostModuleCatalog, moduleFromMenuRoute } from "./core/module-registry-adapter.js";
+
+/* Phoenix User UI V0.1 — Core service and module workspace controller.
+ * The browser receives sanitized, already-authorized context from the host/API.
+ * It never imports business modules or accesses storage directly.
  */
 
 const phoenixContext = {
@@ -16,10 +19,10 @@ const views = {
 };
 
 const coreServices = {
-  search: { route: "search", title: "Global Search", description: "Search across authorized Phoenix content and return permission-aware results." },
-  ai: { route: "ai", title: "AI", description: "Open the Phoenix AI workspace using the Core AI service boundary." },
-  communication: { route: "communication", title: "Communication", description: "Open communication using the Core communication service boundary." },
-  notifications: { route: "notifications", title: "Notifications", description: "Open the notification centre using the Core notification service boundary." }
+  search: { title: "Global Search", description: "Search across authorized Phoenix content and return permission-aware results." },
+  ai: { title: "AI", description: "Open the Phoenix AI workspace using the Core AI service boundary." },
+  communication: { title: "Communication", description: "Open communication using the Core communication service boundary." },
+  notifications: { title: "Notifications", description: "Open the notification centre using the Core notification service boundary." }
 };
 
 const workspaceView = document.getElementById("workspace-view");
@@ -45,17 +48,21 @@ function setActive(route) {
 }
 
 function navigate(route) {
-  if (route === "production") return renderModuleUnavailable("production");
+  const module = moduleFromMenuRoute(phoenixContext.authorizedModules, route);
+  if (module) return openModule(module, route);
+  if (!views[route]) return renderError("Workspace unavailable", "The requested workspace is not registered.");
   renderView(route);
   setActive(route);
   history.replaceState({ route }, "", `#/${route}`);
   document.getElementById("workspace").focus({ preventScroll: true });
 }
 
-function renderModuleUnavailable(code) {
-  const module = phoenixContext.authorizedModules.find((item) => item.code === code);
-  workspaceView.innerHTML = `<header class="workspace-header"><div><p class="eyebrow">Module Workspace</p><h1 class="workspace-title">${module ? module.name : code}</h1><p class="workspace-subtitle">Module workspace integration is the next build stage.</p></div></header><section class="card panel"><div class="empty-state"><div><strong>Module workspace not loaded</strong>The shell will load this module through the Phoenix module contract and Core authorization boundary.</div></div></section>`;
-  setActive(code);
+function openModule(module, route) {
+  const menuItem = module.menu.find((item) => item.route === route) || module.menu[0];
+  workspaceView.innerHTML = `<header class="workspace-header"><div><p class="eyebrow">Phoenix Module</p><h1 class="workspace-title">${module.name}</h1><p class="workspace-subtitle">${module.description || "Authorized module workspace."}</p></div></header><section class="card panel"><div class="empty-state"><div><strong>Module workspace ready</strong><div>${menuItem?.label || module.name} is registered for this User UI session.</div><div style="margin-top:8px;font-size:11px">Version ${module.version || "—"} · Business UI integration follows the module contract.</div></div></div></section>`;
+  setActive(module.code);
+  history.replaceState({ route: module.code }, "", `#/${module.code}`);
+  document.getElementById("workspace").focus({ preventScroll: true });
 }
 
 function renderAuthorizedModules() {
@@ -63,12 +70,14 @@ function renderAuthorizedModules() {
   const modules = phoenixContext.authorizedModules;
   moduleEmpty.hidden = modules.length > 0;
   modules.forEach((module) => {
+    const menuItem = module.menu[0];
+    if (!menuItem) return;
     const button = document.createElement("button");
     button.className = "nav-item";
     button.type = "button";
     button.dataset.route = module.code;
     const icon = document.createElement("span"); icon.className = "nav-icon"; icon.setAttribute("aria-hidden", "true"); icon.textContent = "▦";
-    const label = document.createElement("span"); label.textContent = module.name;
+    const label = document.createElement("span"); label.textContent = menuItem.label || module.name;
     button.append(icon, label);
     button.addEventListener("click", () => navigate(module.code));
     moduleNavigation.appendChild(button);
@@ -94,9 +103,10 @@ window.addEventListener("popstate", () => navigate(location.hash.replace(/^#\//,
 function boot() {
   tenantName.textContent = phoenixContext.tenant.name;
   userName.textContent = phoenixContext.user.displayName;
+  phoenixContext.authorizedModules = getHostModuleCatalog();
   renderAuthorizedModules();
   const initialRoute = location.hash.replace(/^#\//, "") || "home";
-  navigate(views[initialRoute] ? initialRoute : "home");
+  navigate(initialRoute);
 }
 
 boot();
