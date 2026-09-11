@@ -1,4 +1,5 @@
 import { getHostModuleCatalog, moduleFromMenuRoute } from "./core/module-registry-adapter.js";
+import { renderProductionWorkspace } from "./modules/production/production-workspace.js";
 
 /* Phoenix User UI V0.1 — Core service and module workspace controller.
  * The browser receives sanitized, already-authorized context from the host/API.
@@ -58,8 +59,12 @@ function navigate(route) {
 }
 
 function openModule(module, route) {
-  const menuItem = module.menu.find((item) => item.route === route) || module.menu[0];
-  workspaceView.innerHTML = `<header class="workspace-header"><div><p class="eyebrow">Phoenix Module</p><h1 class="workspace-title">${module.name}</h1><p class="workspace-subtitle">${module.description || "Authorized module workspace."}</p></div></header><section class="card panel"><div class="empty-state"><div><strong>Module workspace ready</strong><div>${menuItem?.label || module.name} is registered for this User UI session.</div><div style="margin-top:8px;font-size:11px">Version ${module.version || "—"} · Business UI integration follows the module contract.</div></div></div></section>`;
+  if (module.code === "production") {
+    renderProductionWorkspace({ workspaceView, module });
+  } else {
+    const menuItem = module.menu.find((item) => item.route === route) || module.menu[0];
+    workspaceView.innerHTML = `<header class="workspace-header"><div><p class="eyebrow">Phoenix Module</p><h1 class="workspace-title">${module.name}</h1><p class="workspace-subtitle">${module.description || "Authorized module workspace."}</p></div></header><section class="card panel"><div class="empty-state"><div><strong>Module workspace ready</strong><div>${menuItem?.label || module.name} is registered for this User UI session.</div><div style="margin-top:8px;font-size:11px">Version ${module.version || "—"} · Business UI integration follows the module contract.</div></div></div></section>`;
+  }
   setActive(module.code);
   history.replaceState({ route: module.code }, "", `#/${module.code}`);
   document.getElementById("workspace").focus({ preventScroll: true });
