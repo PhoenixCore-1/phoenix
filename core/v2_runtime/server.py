@@ -33,6 +33,7 @@ V2_ORGANISATION_COOKIE = "phoenix_v2_organisation"
 PUBLIC_BASE_URL = os.getenv("PHOENIX_PUBLIC_BASE_URL", "https://corephoenix.co.za").rstrip("/")
 APP_BASE_URL = os.getenv("PHOENIX_APP_BASE_URL", "https://app.corephoenix.co.za").rstrip("/")
 USER_UI_ROOT = Path(__file__).resolve().parents[2] / "user_ui"
+PLATFORM_UI_ROOT = Path(__file__).resolve().parents[2] / "platform_ui"
 CORE_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -71,14 +72,14 @@ def _is_configured_host(handler, expected_url):
     return request_host == expected_host or request_host.split(":", 1)[0] == expected_host
 
 
-def _user_ui_file(path):
-    """Resolve a /user/* URL strictly inside user_ui."""
-    relative = path[len("/user/"):] if path.startswith("/user/") else ""
+def _safe_ui_file(root, path, prefix):
+    """Resolve a browser URL strictly inside one platform UI root."""
+    relative = path[len(prefix):].lstrip("/") if path.startswith(prefix) else ""
     if not relative:
         relative = "index.html"
-    candidate = (USER_UI_ROOT / relative).resolve()
+    candidate = (root / relative).resolve()
     try:
-        candidate.relative_to(USER_UI_ROOT.resolve())
+        candidate.relative_to(root.resolve())
     except ValueError:
         return None
     return candidate if candidate.is_file() else None
@@ -148,15 +149,15 @@ class V2Handler(LegacyHandler):
             return False
         return entry
 
-    def _serve_user_platform(self, path):
+    def _serve_platform(self, path, platform_name, root):
         entry = self._authorize_platform(path)
         if entry is False:
             return True
         if entry is None:
             return False
-        file_path = _user_ui_file(path)
+        file_path = _safe_ui_file(root / platform_name, path, f"/{platform_name}")
         if file_path is None:
-            _send_json(self, {"ok": False, "code": "USER_UI_NOT_FOUND", "error": "User workspace resource not found."}, 404)
+            _send_json(self, {"ok": False, "code": "PLATFORM_UI_NOT_FOUND", "error": f"{platform_name.title()} Platform workspace resource not found."}, 404)
             return True
         _serve_file(self, file_path)
         return True
@@ -164,14 +165,12 @@ class V2Handler(LegacyHandler):
     def do_GET(self):
         path = self.path.split("?", 1)[0]
 
-        # Public origin is a presentation-only front door.
         if _is_configured_host(self, PUBLIC_BASE_URL) and path == "/":
             landing_page = CORE_ROOT / "landing.html"
             if landing_page.is_file():
                 _serve_file(self, landing_page)
                 return
 
-        # Application origin is the sole authenticated application host.
         if _is_configured_host(self, APP_BASE_URL) and path == "/":
             try:
                 self._authenticated_context()
@@ -189,7 +188,19 @@ class V2Handler(LegacyHandler):
         if path == "/user" or path.startswith("/user/"):
             if not self._enforce_route_boundary("GET", "/user"):
                 return
-            self._serve_user_platform(path)
+            self._serve_platform(path, "user", USER_UI_ROOT)
+            return
+
+        if path == "/company" or path.startswith("/company/"):
+            if not self._enforce_route_boundary("GET", "/company"):
+                return
+            self._serve_platform(path, "company", PLATFORM_UI_ROOT)
+            return
+
+        if path == "/system" or path.startswith("/system/"):
+            if not self._enforce_route_boundary("GET", "/system"):
+                return
+            self._serve_platform(path, "system", PLATFORM_UI_ROOT)
             return
 
         if not self._enforce_route_boundary("GET", path):
@@ -197,13 +208,7 @@ class V2Handler(LegacyHandler):
         if path == "/api/session" and v2_enabled():
             try:
                 session_id, organisation_id, context, platform = self._authenticated_context()
-                _send_json(self, {
-                    "authenticated": True,
-                    "session_id": session_id,
-                    "organisation_id": organisation_id,
-                    "context": context,
-                    "platform": platform,
-                })
+                _send_json(self, {"authenticated": True, "session_id": session_id, "organisation_id": organisation_id, "context": context, "platform": platform})
             except Exception:
                 _send_json(self, {"error": "Authenticated V2 session context is unavailable.", "code": "V2_SESSION_UNAVAILABLE"}, 401)
             return
@@ -227,11 +232,7 @@ class V2Handler(LegacyHandler):
             data = read_json(self)
             try:
                 integration = self._v2()
-                result = integration.login(
-                    str(data.get("username", "")).strip(),
-                    data.get("password", ""),
-                    data.get("organisation_id"),
-                )
+                result = integration.login(str(data.get("username", "")).strip(), data.get("password", ""), data.get("organisation_id"))
                 payload = result.get("data") or result
                 session_id = payload.get("session_id")
                 token = payload.get("token")
@@ -242,20 +243,8 @@ class V2Handler(LegacyHandler):
                 destination = integration.platform_destination(str(session_id), str(organisation_id))
                 platform = destination.get("data") or destination
                 remember_me = bool(data.get("remember_me", False))
-                cookies = (
-                    build_session_cookie(str(session_id), remember_me=remember_me),
-                    build_token_cookie(str(token), remember_me=remember_me),
-                    build_organisation_cookie(str(organisation_id), remember_me=remember_me),
-                )
-                _send_json(self, {
-                    "ok": True,
-                    "authenticated": True,
-                    "session_id": str(session_id),
-                    "organisation_id": str(organisation_id),
-                    "context": context,
-                    "platform": platform,
-                    "destination": platform.get("destination"),
-                }, cookies=cookies)
+                cookies = (build_session_cookie(str(session_id), remember_me=remember_me), build_token_cookie(str(token), remember_me=remember_me), build_organisation_cookie(str(organisation_id), remember_me=remember_me))
+                _send_json(self, {"ok": True, "authenticated": True, "session_id": str(session_id), "organisation_id": str(organisation_id), "context": context, "platform": platform, "destination": platform.get("destination")}, cookies=cookies)
             except Exception:
                 _send_json(self, {"error": "Authentication failed.", "code": "AUTHENTICATION_FAILED"}, 401)
             return
