@@ -35,8 +35,12 @@ PLATFORM_PATHS = {
 
 
 def requested_platform(path: str) -> str | None:
-    """Return the platform represented by a request path."""
-    return PLATFORM_PATHS.get(path)
+    """Return the platform represented by an exact platform or child path."""
+    clean_path = path.split("?", 1)[0].rstrip("/") or "/"
+    for prefix, platform in PLATFORM_PATHS.items():
+        if clean_path == prefix or clean_path.startswith(prefix + "/"):
+            return platform
+    return None
 
 
 def authorize_platform_entry(
@@ -67,7 +71,6 @@ def authorize_platform_entry(
         )
 
     try:
-        # Core V2 is authoritative for both session validity and destination.
         integration.session(session_id, organisation_id)
         result = integration.platform_destination(session_id, organisation_id)
         destination = result.get("data") or result
