@@ -109,6 +109,11 @@ async function boot() {
     const user = session?.user || {};
     phoenixContext.tenant = { id: user.organisation_id ?? null, name: user.organisation_name || "Current Tenant" };
     phoenixContext.user = { id: user.user_id ?? null, username: user.username ?? null, displayName: user.display_name || user.username || "User", display_name: user.display_name, user_id: user.user_id, organisation_id: user.organisation_id, organisation_name: user.organisation_name };
+    coreServiceAdapter.setContext({
+      sessionId: session?.session_id ?? session?.sessionId,
+      token: session?.token,
+      organisationId: user.organisation_id ?? session?.organisation_id ?? session?.organisationId
+    });
     const catalog = await coreServiceAdapter.getAuthorizedModuleCatalog(); window.PhoenixCoreModuleCatalog = catalog; phoenixContext.authorizedModules = getHostModuleCatalog();
   } catch (error) {
     phoenixContext.authorizedModules = getHostModuleCatalog(); renderError("Phoenix session unavailable", error?.message || "The authenticated Core service could not be reached.");
