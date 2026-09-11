@@ -21,6 +21,7 @@ class RouteDecision:
 # the legacy transport without authentication and therefore are not listed here.
 V2_AUTH_ROUTES = frozenset({
     ("GET", "/api/session"),
+    ("GET", "/api/module-catalog"),
     ("POST", "/api/login"),
     ("POST", "/api/logout"),
 })
