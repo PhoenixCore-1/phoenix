@@ -1,3 +1,5 @@
+import { renderProfileNavigation } from "./profile-navigation.js";
+
 /* Phoenix User UI V0.1 — User preferences workspace. */
 
 function escapeHtml(value) {
@@ -9,7 +11,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-export function renderProfilePreferencesWorkspace({ workspaceView, context }) {
+export function renderProfilePreferencesWorkspace({ workspaceView, context, navigate }) {
   const user = context?.user || {};
   workspaceView.innerHTML = `
     <header class="workspace-header">
@@ -19,6 +21,7 @@ export function renderProfilePreferencesWorkspace({ workspaceView, context }) {
         <p class="workspace-subtitle">Personalise your Phoenix User UI workspace without changing company or platform settings.</p>
       </div>
     </header>
+    <div data-profile-navigation></div>
     <section class="card panel">
       <div class="panel-heading-row"><div><h2 class="panel-title">Workspace Preferences</h2><p class="panel-subtitle">These controls are user-scoped. Saved preferences will be persisted through the appropriate Core service when connected.</p></div></div>
       <form class="profile-preferences-form" data-preferences-form>
@@ -31,6 +34,7 @@ export function renderProfilePreferencesWorkspace({ workspaceView, context }) {
       <p class="muted">Signed in as ${escapeHtml(user.displayName || user.username || "User")}. Company administration and Phoenix platform settings are not exposed here.</p>
     </section>`;
 
+  renderProfileNavigation(workspaceView.querySelector("[data-profile-navigation]"), navigate, "profile-preferences");
   workspaceView.querySelector("[data-preferences-form]").addEventListener("submit", (event) => {
     event.preventDefault();
     const status = workspaceView.querySelector("[data-preferences-status]");
