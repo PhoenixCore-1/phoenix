@@ -5,6 +5,8 @@ import { renderMyWorkWorkspace } from "./core/my-work-workspace.js";
 import { renderDocumentsWorkspace } from "./core/documents-workspace.js";
 import { renderNotificationsWorkspace } from "./core/notifications-workspace.js";
 import { renderProfileWorkspace } from "./core/profile-workspace.js";
+import { renderProfilePreferencesWorkspace } from "./core/profile-preferences-workspace.js";
+import { renderSignOutWorkspace } from "./core/sign-out-workspace.js";
 import { renderSecurityWorkspace } from "./core/security-workspace.js";
 import { renderDevicesSessionsWorkspace } from "./core/devices-sessions-workspace.js";
 import { renderActivityWorkspace } from "./core/activity-workspace.js";
@@ -34,6 +36,8 @@ function navigate(route) {
   if (route === "documents") { renderDocumentsWorkspace({ workspaceView }); setActive(route); history.replaceState({ route }, "", "#/documents"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   if (route === "notifications") { renderNotificationsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/notifications"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   if (route === "profile") { renderProfileWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(route); history.replaceState({ route }, "", "#/profile"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "profile-preferences") { renderProfilePreferencesWorkspace({ workspaceView, context: phoenixContext }); setActive(""); history.replaceState({ route }, "", "#/profile-preferences"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
+  if (route === "sign-out") { renderSignOutWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/sign-out"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   if (route === "security") { renderSecurityWorkspace({ workspaceView, session: phoenixContext.session, authorizedModules: phoenixContext.authorizedModules }); setActive(""); history.replaceState({ route }, "", "#/security"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   if (route === "devices-sessions") { renderDevicesSessionsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/devices-sessions"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
   if (route === "activity") { renderActivityWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/activity"); document.getElementById("workspace").focus({ preventScroll: true }); return; }
