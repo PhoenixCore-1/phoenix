@@ -1,11 +1,14 @@
+import { renderProfileNavigation } from "./profile-navigation.js";
+
 /* Phoenix User UI V0.1 — Sign Out workspace.
  * Logout authority belongs to Phoenix Core. Browser state is cleared only
  * after Core confirms session revocation.
  */
 
-export function renderSignOutWorkspace({ workspaceView, coreServiceAdapter, onSignedOut }) {
+export function renderSignOutWorkspace({ workspaceView, coreServiceAdapter, onSignedOut, navigate }) {
   workspaceView.innerHTML = `
     <header class="workspace-header"><div><p class="eyebrow">User Profile</p><h1 class="workspace-title">Sign Out</h1><p class="workspace-subtitle">End the current Phoenix session securely.</p></div></header>
+    <div data-profile-navigation></div>
     <section class="card panel">
       <h2 class="panel-title">End this session?</h2>
       <p class="panel-subtitle">Phoenix Core will remain authoritative for session termination. The User UI will not claim logout succeeded until Core confirms it.</p>
@@ -13,6 +16,7 @@ export function renderSignOutWorkspace({ workspaceView, coreServiceAdapter, onSi
       <div class="status" data-signout-status role="status" aria-live="polite"></div>
     </section>`;
 
+  renderProfileNavigation(workspaceView.querySelector("[data-profile-navigation]"), navigate, "sign-out");
   const status = workspaceView.querySelector("[data-signout-status]");
   workspaceView.querySelector("[data-cancel]").addEventListener("click", () => window.history.back());
   workspaceView.querySelector("[data-sign-out]").addEventListener("click", async () => {
