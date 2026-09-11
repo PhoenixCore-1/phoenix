@@ -60,11 +60,29 @@ function bindActions(workspaceView, order) {
     const action = button.dataset.productionAction;
     if (!action || button.disabled) return;
     const feedback = workspaceView.querySelector("[data-production-action-feedback]");
-    if (["hold", "complete"].includes(action) && !window.confirm(`Confirm ${action} for ${order.orderNumber}? The Production service will validate the request before any change is made.`)) return;
+    let payload = { stageId: order.currentStageId };
+
+    if (["hold", "complete"].includes(action)) {
+      if (action === "hold") {
+        const reason = window.prompt(`Reason for placing ${order.orderNumber} on hold:`);
+        if (!reason?.trim()) return;
+        payload.reason = reason.trim();
+      }
+      if (!window.confirm(`Confirm ${action} for ${order.orderNumber}? The Production service will validate the request before any change is made.`)) return;
+    }
+
+    if (action === "complete") {
+      const ordered = toNumber(order.quantity);
+      const accepted = toNumber(order.currentStageAccepted);
+      const rejected = toNumber(order.currentStageRejected);
+      payload.completedQty = Math.max(0, ordered - accepted - rejected);
+      payload.rejectedQty = 0;
+    }
+
     setActionBusy(workspaceView, true);
     showActionFeedback(feedback, "info", `${formatAction(action)} requested. Waiting for server validation…`);
     try {
-      const result = await executeProductionAction(action, order.id);
+      const result = await executeProductionAction(action, order.id, payload);
       showActionFeedback(feedback, "success", actionResultMessage(result, action));
       window.dispatchEvent(new CustomEvent("phoenix:production-action-result", { detail: { action, orderId: order.id, result } }));
     } catch (error) {
@@ -105,13 +123,30 @@ function detailErrorMarkup(contract, orderId, message) {
 
 function normalizeOrder(result, fallbackId) {
   const source = result?.order ?? result ?? {};
-  return { id: source.id ?? source.order_id ?? fallbackId, orderNumber: source.orderNumber ?? source.order_number ?? source.id ?? fallbackId, product: source.productName ?? source.product_name ?? source.product ?? "—", customer: source.customerName ?? source.customer_name ?? source.customer ?? "—", quantity: source.quantity ?? source.order_quantity ?? "—", stage: source.currentStage ?? source.current_stage ?? source.stage ?? "—", state: source.state ?? source.status ?? "—", eta: source.eta ?? source.estimated_completion ?? source.planned_completion ?? "—", plannedCompletion: source.planned_completion ?? source.plannedCompletion ?? "—", actualCompletion: source.actual_completion ?? source.actualCompletion ?? "—" };
+  const stages = Array.isArray(source.stages) ? source.stages : [];
+  const currentStageId = source.current_stage_id ?? source.currentStageId ?? stages.find((stage) => ["In Progress", "On Hold", "Ready"].includes(stage.status ?? stage.state))?.stage_id ?? null;
+  const currentStage = stages.find((stage) => String(stage.stage_id ?? stage.id) === String(currentStageId)) || {};
+  return {
+    id: source.id ?? source.order_id ?? source.production_order_id ?? fallbackId,
+    orderNumber: source.orderNumber ?? source.order_number ?? source.id ?? source.production_order_id ?? fallbackId,
+    product: source.productName ?? source.product_name ?? source.product ?? source.product_ref ?? "—",
+    customer: source.customerName ?? source.customer_name ?? source.customer ?? source.account_name ?? "—",
+    quantity: source.quantity ?? source.order_quantity ?? source.quantity_ordered ?? "—",
+    stage: source.currentStage ?? source.current_stage ?? source.stage ?? source.current_stage_name ?? "—",
+    state: source.state ?? source.status ?? "—",
+    eta: source.eta ?? source.estimated_completion ?? source.current_eta_at ?? source.planned_eta_at ?? "—",
+    plannedCompletion: source.planned_completion ?? source.plannedCompletion ?? source.planned_finish_at ?? "—",
+    actualCompletion: source.actual_completion ?? source.actualCompletion ?? source.completed_at ?? "—",
+    currentStageId,
+    currentStageAccepted: currentStage.quantity_completed ?? currentStage.completed_quantity ?? currentStage.accepted_quantity ?? 0,
+    currentStageRejected: currentStage.quantity_rejected ?? currentStage.rejected_quantity ?? 0
+  };
 }
 
 function normalizeStages(result) {
   const source = Array.isArray(result) ? result : result?.stages;
   if (!Array.isArray(source)) return [];
-  return source.filter(Boolean).map((stage, index) => ({ name: stage.name ?? stage.stageName ?? stage.stage_name ?? stage.code ?? `Stage ${index + 1}`, state: stage.state ?? stage.status ?? "—", quantity: stage.quantity ?? stage.completed_quantity ?? stage.actual_quantity ?? "—", planned: stage.planned_quantity ?? stage.plannedQuantity ?? "—", eta: stage.eta ?? stage.estimated_completion ?? "—" }));
+  return source.filter(Boolean).map((stage, index) => ({ name: stage.name ?? stage.stageName ?? stage.stage_name ?? stage.code ?? `Stage ${index + 1}`, state: stage.state ?? stage.status ?? "—", quantity: stage.quantity ?? stage.completed_quantity ?? stage.quantity_completed ?? stage.actual_quantity ?? "—", planned: stage.planned_quantity ?? stage.plannedQuantity ?? stage.quantity_ordered ?? "—", eta: stage.eta ?? stage.estimated_completion ?? "—" }));
 }
 
 function stageMarkup(stage) {
@@ -121,4 +156,5 @@ function stageEmptyMarkup() { return `<div class="empty-state"><div><strong>No s
 function detailItem(label, value) { return `<div class="detail-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`; }
 function bindDetailNavigation(workspaceView) { workspaceView.querySelector("[data-production-detail-back]")?.addEventListener("click", () => goBackToOrders(workspaceView)); }
 function goBackToOrders(workspaceView) { workspaceView.dispatchEvent(new CustomEvent("phoenix:production-orders-back", { bubbles: true })); }
+function toNumber(value) { const number = Number(value); return Number.isFinite(number) ? number : 0; }
 function escapeHtml(value) { return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;"); }
