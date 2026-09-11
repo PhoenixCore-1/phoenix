@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Phoenix — Company Platform</title>
+  <style>
+    :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f6fa}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh}.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}.side{background:#101a2e;color:#fff;padding:24px}.brand{font-weight:700;font-size:20px;margin-bottom:8px}.platform{font-size:12px;opacity:.7;margin-bottom:32px}.nav{display:grid;gap:8px}.nav a{color:#dce4f5;text-decoration:none;padding:10px 12px;border-radius:8px}.nav a:hover{background:#1d2b47}.main{padding:32px;max-width:1200px;width:100%}.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#64748b}.title{margin:6px 0;font-size:32px}.subtitle{color:#64748b}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:28px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(15,23,42,.04)}.card h2{font-size:17px;margin:0 0 8px}.card p{color:#64748b;font-size:14px;line-height:1.5;margin:0}.note{margin-top:24px;padding:14px 16px;border-left:3px solid #d6a84f;background:#fff;color:#475569;font-size:13px}@media(max-width:720px){.shell{grid-template-columns:1fr}.side{padding:16px}.main{padding:20px}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="side">
+      <div class="brand">Phoenix</div>
+      <div class="platform">Company Platform</div>
+      <nav class="nav" aria-label="Company Platform navigation">
+        <a href="/company">Dashboard</a>
+        <a href="/company/users">Users &amp; Access</a>
+        <a href="/company/roles">Roles &amp; Permissions</a>
+        <a href="/company/configuration">Company Configuration</a>
+        <a href="/company/activity">Activity &amp; Oversight</a>
+        <a href="/company/reports">Reporting</a>
+        <a href="/user">User Platform</a>
+      </nav>
+    </aside>
+    <main class="main">
+      <div class="eyebrow">Authenticated Phoenix workspace</div>
+      <h1 class="title">Company Platform</h1>
+      <p class="subtitle">Tenant administration and company oversight.</p>
+      <section class="grid">
+        <article class="card"><h2>Users &amp; Access</h2><p>Company-scoped administration of users, roles, permissions and visibility.</p></article>
+        <article class="card"><h2>Company Configuration</h2><p>Manage company-level configuration exposed by the Company Platform.</p></article>
+        <article class="card"><h2>Activity &amp; Oversight</h2><p>Review company activity and platform-level oversight information.</p></article>
+        <article class="card"><h2>Reporting</h2><p>Access authorised company reporting and monitoring views.</p></article>
+      </section>
+      <div class="note">This is the Company Platform UI entry shell. Authentication, authorisation, tenant isolation and business transaction authority remain outside the browser and are enforced by Phoenix Core.</div>
+    </main>
+  </div>
+</body>
+</html>
