@@ -17,6 +17,7 @@ from core.v2_runtime.http_integration import (
     clear_v2_cookies,
     cookie_value,
 )
+from core.v2_runtime.route_boundary import decide_v2_route
 
 V2_SESSION_COOKIE = "phoenix_v2_session"
 V2_ORGANISATION_COOKIE = "phoenix_v2_organisation"
@@ -34,6 +35,14 @@ def _send_json(handler, payload, status=200, cookies=()):
     handler.wfile.write(body)
 
 
+def _route_blocked(handler, decision):
+    _send_json(
+        handler,
+        {"ok": False, "code": decision.code, "error": decision.message},
+        status=503,
+    )
+
+
 class V2Handler(LegacyHandler):
     """Existing HTTP doorway with V2-owned authentication/session routes."""
 
@@ -43,8 +52,19 @@ class V2Handler(LegacyHandler):
             raise V2HttpIntegrationError("Phoenix Core V2 runtime is unavailable.")
         return integration
 
+    def _enforce_route_boundary(self, method, path):
+        if not v2_enabled():
+            return True
+        decision = decide_v2_route(method, path)
+        if decision.allowed:
+            return True
+        _route_blocked(self, decision)
+        return False
+
     def do_GET(self):
         path = self.path.split("?", 1)[0]
+        if not self._enforce_route_boundary("GET", path):
+            return
         if path == "/api/session" and v2_enabled():
             try:
                 cookie_header = self.headers.get("Cookie")
@@ -70,6 +90,8 @@ class V2Handler(LegacyHandler):
 
     def do_POST(self):
         path = self.path.split("?", 1)[0]
+        if not self._enforce_route_boundary("POST", path):
+            return
         if path == "/api/login" and v2_enabled():
             data = read_json(self)
             try:
@@ -108,12 +130,15 @@ class V2Handler(LegacyHandler):
             return
 
         if path == "/api/logout" and v2_enabled():
+            token = cookie_value(self.headers.get("Cookie"), "phoenix_v2_token")
+            if not token:
+                _send_json(self, {"ok": True, "code": "NO_SESSION"}, cookies=clear_v2_cookies())
+                return
             try:
-                token = cookie_value(self.headers.get("Cookie"), "phoenix_v2_token")
-                if token:
-                    self._v2().logout(token)
+                self._v2().logout(token)
             except Exception:
-                pass
+                _send_json(self, {"ok": False, "code": "LOGOUT_FAILED", "error": "Session termination failed."}, status=503)
+                return
             _send_json(self, {"ok": True}, cookies=clear_v2_cookies())
             return
         super().do_POST()
