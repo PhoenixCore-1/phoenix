@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .feature_switch import v2_enabled
-from .route_boundary import classify_route
+from .route_boundary import decide_v2_route
 
 
 class V2RouteGate:
@@ -13,12 +13,14 @@ class V2RouteGate:
         self.enabled = v2_enabled() if enabled is None else bool(enabled)
 
     def decision(self, method: str, path: str) -> str:
-        """Return ``v2``, ``legacy``, or ``blocked`` for the request."""
+        """Return ``v2``, ``public``, ``legacy``, or ``blocked``."""
         if not self.enabled:
             return "legacy"
-        route = classify_route(method, path)
-        if route in {"public", "v2"}:
-            return route
+        decision = decide_v2_route(method, path)
+        if decision.code == "V2_AUTH_ROUTE":
+            return "v2"
+        if decision.code == "TRANSPORT_ROUTE":
+            return "public"
         return "blocked"
 
     def allow_legacy_dispatch(self, method: str, path: str) -> bool:
