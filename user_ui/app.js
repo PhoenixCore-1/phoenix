@@ -11,28 +11,11 @@ import { renderProductionWorkspace } from "./modules/production/production-works
 /* Phoenix User UI V0.1 — Core service and module workspace controller. */
 
 const phoenixContext = { tenant: { id: null, name: "Current Tenant" }, user: { id: null, displayName: "User" }, authorizedModules: [], session: null };
-
-const views = {
-  documents: { eyebrow: "Core Service", title: "Documents", subtitle: "Access documents available to you within the current tenant context.", body: `<section class="card panel"><div class="empty-state"><div><strong>No documents loaded</strong>Document discovery will use the Core/API service boundary.</div></div></section>` }
-};
-
-const coreServices = {
-  search: { title: "Global Search", description: "Search across authorized Phoenix content and return permission-aware results." },
-  ai: { title: "AI", description: "Open the Phoenix AI workspace using the Core AI service boundary." },
-  communication: { title: "Communication", description: "Open communication using the Core communication service boundary." }
-};
-
 const workspaceView = document.getElementById("workspace-view");
 const moduleNavigation = document.getElementById("module-navigation");
 const moduleEmpty = document.getElementById("module-empty");
 const tenantName = document.getElementById("tenant-name");
 const userName = document.getElementById("user-name");
-
-function renderView(route) {
-  const view = views[route];
-  if (!view) return renderError("Workspace unavailable", "The requested workspace is not registered.");
-  workspaceView.innerHTML = `<header class="workspace-header"><div><p class="eyebrow">${view.eyebrow}</p><h1 class="workspace-title">${view.title}</h1><p class="workspace-subtitle">${view.subtitle}</p></div></header>${view.body}`;
-}
 
 function renderError(title, message) { workspaceView.innerHTML = `<div class="status error"><strong>${title}.</strong> ${message}</div>`; }
 function setActive(route) { document.querySelectorAll("[data-route]").forEach((item) => item.classList.toggle("active", item.dataset.route === route)); }
@@ -41,26 +24,28 @@ function navigate(route) {
   const module = moduleFromMenuRoute(phoenixContext.authorizedModules, route);
   if (module) return openModule(module, route);
   if (route === "home") {
-    renderHomeWorkspace({ workspaceView, context: phoenixContext, navigate });
-    setActive(route); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
+    renderHomeWorkspace({ workspaceView, context: phoenixContext, navigate }); setActive(route); history.replaceState({ route }, "", "#/home"); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
   if (route === "my-work") {
-    renderMyWorkWorkspace({ workspaceView, userId: phoenixContext.user.id }); setActive(route); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
+    renderMyWorkWorkspace({ workspaceView, userId: phoenixContext.user.id }); setActive(route); history.replaceState({ route }, "", "#/my-work"); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
   if (route === "notifications") {
-    renderNotificationsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
+    renderNotificationsWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/notifications"); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
   if (route === "profile") {
-    renderProfileWorkspace({ workspaceView, context: phoenixContext }); setActive(route); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
+    renderProfileWorkspace({ workspaceView, context: phoenixContext }); setActive(route); history.replaceState({ route }, "", "#/profile"); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
   if (route === "security") {
-    renderSecurityWorkspace({ workspaceView, session: phoenixContext.session, authorizedModules: phoenixContext.authorizedModules }); setActive(""); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
+    renderSecurityWorkspace({ workspaceView, session: phoenixContext.session, authorizedModules: phoenixContext.authorizedModules }); setActive(""); history.replaceState({ route }, "", "#/security"); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
   if (route === "integration-tests") {
-    renderIntegrationTestWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true }); return;
+    renderIntegrationTestWorkspace({ workspaceView, coreServiceAdapter }); setActive(""); history.replaceState({ route }, "", "#/integration-tests"); document.getElementById("workspace").focus({ preventScroll: true }); return;
   }
-  if (!views[route]) return renderError("Workspace unavailable", "The requested workspace is not registered.");
-  renderView(route); setActive(route); history.replaceState({ route }, "", `#/${route}`); document.getElementById("workspace").focus({ preventScroll: true });
+  if (route === "documents") {
+    workspaceView.innerHTML = `<header class="workspace-header"><div><p class="eyebrow">Phoenix Core</p><h1 class="workspace-title">Documents</h1><p class="workspace-subtitle">Access documents available to you within the current tenant context.</p></div></header><section class="card panel"><div class="empty-state"><div><strong>Documents service pending</strong>Document discovery will use the Core/API service boundary when its HTTP route is exposed.</div></div></section>`;
+    setActive(route); history.replaceState({ route }, "", "#/documents"); document.getElementById("workspace").focus({ preventScroll: true }); return;
+  }
+  renderError("Workspace unavailable", "The requested workspace is not registered.");
 }
 
 function openModule(module, route) {
@@ -85,9 +70,10 @@ function renderAuthorizedModules() {
 
 function openCoreService(serviceCode) {
   if (serviceCode === "notifications") return navigate("notifications");
-  const service = coreServices[serviceCode];
+  const descriptions = { search: ["Global Search", "Search across authorized Phoenix content and return permission-aware results."], ai: ["AI", "Open the Phoenix AI workspace using the Core AI service boundary."], communication: ["Communication", "Open communication using the Core communication service boundary."] };
+  const service = descriptions[serviceCode];
   if (!service) return renderError("Service unavailable", "The requested Core service is not registered.");
-  workspaceView.innerHTML = `<header class="workspace-header"><div><p class="eyebrow">Phoenix Core</p><h1 class="workspace-title">${service.title}</h1><p class="workspace-subtitle">${service.description}</p></div></header><section class="card panel"><div class="empty-state"><div><strong>Core service entry ready</strong>This is the User UI boundary. The live service implementation will be connected through the Core/API layer without direct database access.</div></div></section>`;
+  workspaceView.innerHTML = `<header class="workspace-header"><div><p class="eyebrow">Phoenix Core</p><h1 class="workspace-title">${service[0]}</h1><p class="workspace-subtitle">${service[1]}</p></div></header><section class="card panel"><div class="empty-state"><div><strong>Core service entry ready</strong>This is the User UI boundary. The live service implementation will be connected through the Core/API layer without direct database access.</div></div></section>`;
   document.querySelectorAll("[data-route]").forEach((item) => item.classList.remove("active"));
 }
 function handleHeaderAction(action) { if (action === "profile") return navigate("profile"); openCoreService(action); }
@@ -109,9 +95,9 @@ async function boot() {
   try {
     const session = await coreServiceAdapter.getUserContext(); phoenixContext.session = session;
     const user = session?.user || {};
-    phoenixContext.tenant = { id: user.organisation_id ?? session?.organisation_id ?? session?.organisationId ?? null, name: user.organisation_name || session?.organisation_name || "Current Tenant" };
-    phoenixContext.user = { id: user.user_id ?? user.id ?? session?.identity_id ?? null, username: user.username ?? null, displayName: user.display_name || user.username || "User", display_name: user.display_name, user_id: user.user_id ?? user.id, organisation_id: user.organisation_id ?? session?.organisation_id ?? session?.organisationId, organisation_name: user.organisation_name || session?.organisation_name };
-    coreServiceAdapter.setContext({ sessionId: session?.session_id ?? session?.sessionId, token: session?.token, organisationId: phoenixContext.tenant.id });
+    phoenixContext.tenant = { id: user.organisation_id ?? session?.organisation_id ?? null, name: user.organisation_name || session?.organisation_name || "Current Tenant" };
+    phoenixContext.user = { id: user.user_id ?? user.id ?? session?.identity_id ?? null, username: user.username ?? null, displayName: user.display_name || user.username || "User", display_name: user.display_name, user_id: user.user_id ?? user.id, organisation_id: user.organisation_id ?? session?.organisation_id, organisation_name: user.organisation_name ?? session?.organisation_name };
+    coreServiceAdapter.setContext({ sessionId: session?.session_id ?? session?.sessionId, token: session?.token, organisationId: phoenixContext.user.organisation_id });
     const catalog = await coreServiceAdapter.getAuthorizedModuleCatalog(); window.PhoenixCoreModuleCatalog = catalog; phoenixContext.authorizedModules = getHostModuleCatalog();
   } catch (error) {
     phoenixContext.authorizedModules = getHostModuleCatalog(); renderError("Phoenix session unavailable", error?.message || "The authenticated Core service could not be reached.");
