@@ -1,6 +1,6 @@
 """HTTP transport boundary for Phoenix Core V2 authentication.
 
-The legacy HTTP handler remains responsible for routing and response formatting.
+The legacy HTTP handler remains responsible for transport and response formatting.
 This module centralises the V2 cookie/session decisions so the handler can adopt
 V2 without duplicating authentication logic or falling back to legacy auth.
 """
@@ -15,6 +15,7 @@ from .feature_switch import v2_enabled
 from .http_auth_routes import V2HttpAuth
 
 V2_SESSION_COOKIE = "phoenix_v2_session"
+V2_TOKEN_COOKIE = "phoenix_v2_token"
 V2_ORGANISATION_COOKIE = "phoenix_v2_organisation"
 
 
@@ -82,24 +83,36 @@ def cookie_value(cookie_header: str | None, name: str) -> str | None:
     return morsel.value if morsel else None
 
 
-def build_session_cookie(token: str, *, remember_me: bool = False) -> str:
-    """Build the V2 session cookie with HTTP-only and SameSite protections."""
-    cookie = f"{V2_SESSION_COOKIE}={token}; HttpOnly; SameSite=Lax; Path=/"
+def build_session_cookie(session_id: str, *, remember_me: bool = False) -> str:
+    """Build the V2 session-context cookie."""
+    cookie = f"{V2_SESSION_COOKIE}={session_id}; HttpOnly; SameSite=Lax; Path=/"
     if remember_me:
         cookie += f"; Max-Age={30 * 24 * 60 * 60}"
     return cookie
 
 
-def build_organisation_cookie(organisation_id: str) -> str:
+def build_token_cookie(token: str, *, remember_me: bool = False) -> str:
+    """Build the V2 secret session-token cookie used only for revocation."""
+    cookie = f"{V2_TOKEN_COOKIE}={token}; HttpOnly; SameSite=Lax; Path=/"
+    if remember_me:
+        cookie += f"; Max-Age={30 * 24 * 60 * 60}"
+    return cookie
+
+
+def build_organisation_cookie(organisation_id: str, *, remember_me: bool = False) -> str:
     """Build the non-secret organisation context cookie."""
-    return f"{V2_ORGANISATION_COOKIE}={organisation_id}; HttpOnly; SameSite=Lax; Path=/"
+    cookie = f"{V2_ORGANISATION_COOKIE}={organisation_id}; HttpOnly; SameSite=Lax; Path=/"
+    if remember_me:
+        cookie += f"; Max-Age={30 * 24 * 60 * 60}"
+    return cookie
 
 
-def clear_v2_cookies() -> tuple[str, str]:
-    """Return expiry headers for both V2 session-context cookies."""
+def clear_v2_cookies() -> tuple[str, str, str]:
+    """Return expiry headers for all V2 session-context cookies."""
     expiry = "; HttpOnly; SameSite=Lax; Path=/; Max-Age=0"
     return (
         f"{V2_SESSION_COOKIE}=;{expiry}",
+        f"{V2_TOKEN_COOKIE}=;{expiry}",
         f"{V2_ORGANISATION_COOKIE}=;{expiry}",
     )
 
@@ -171,15 +184,15 @@ def current_v2_session(
         integration.close()
 
 
-def logout_v2(cookie_header: str | None) -> tuple[bool, tuple[str, str]]:
+def logout_v2(cookie_header: str | None) -> tuple[bool, tuple[str, str, str]]:
     """Revoke the V2 session and return cookie-expiry headers."""
     if not v2_enabled():
         raise V2HttpIntegrationError("Phoenix Core V2 is not enabled.")
-    session_cookie = cookie_value(cookie_header, V2_SESSION_COOKIE)
-    if session_cookie:
+    token = cookie_value(cookie_header, V2_TOKEN_COOKIE)
+    if token:
         integration = V2HttpIntegration.from_environment()
         try:
-            integration.logout(session_cookie)
+            integration.logout(token)
         finally:
             integration.close()
     return True, clear_v2_cookies()
