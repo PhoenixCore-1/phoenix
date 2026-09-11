@@ -7,6 +7,7 @@ from http.server import ThreadingHTTPServer
 
 from core.app import Handler as LegacyHandler
 from core.app import HOST, PORT, configure_production_module, init_db, read_json
+from core.module_contract import module_catalog
 from core.v2_runtime.feature_switch import v2_enabled
 from core.v2_runtime.http_integration import (
     V2HttpIntegration,
@@ -43,6 +44,16 @@ def _route_blocked(handler, decision):
     )
 
 
+def _module_catalog_for_entitlements(entitlements):
+    """Return only registered modules authorised by the Core context."""
+    allowed = {str(code) for code in (entitlements or [])}
+    return [
+        module
+        for module in module_catalog()
+        if module.get("code") in allowed
+    ]
+
+
 class V2Handler(LegacyHandler):
     """Existing HTTP doorway with V2-owned authentication/session routes."""
 
@@ -61,31 +72,48 @@ class V2Handler(LegacyHandler):
         _route_blocked(self, decision)
         return False
 
+    def _authenticated_context(self):
+        cookie_header = self.headers.get("Cookie")
+        session_id = cookie_value(cookie_header, V2_SESSION_COOKIE)
+        organisation_id = cookie_value(cookie_header, V2_ORGANISATION_COOKIE)
+        if not session_id or not organisation_id:
+            raise V2HttpIntegrationError("Authenticated V2 session context is required.")
+        integration = self._v2()
+        context = integration.session(session_id, organisation_id)
+        destination = integration.platform_destination(session_id, organisation_id)
+        platform = destination.get("data") or destination
+        return session_id, organisation_id, context, platform
+
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if not self._enforce_route_boundary("GET", path):
             return
         if path == "/api/session" and v2_enabled():
             try:
-                cookie_header = self.headers.get("Cookie")
-                session_id = cookie_value(cookie_header, V2_SESSION_COOKIE)
-                organisation_id = cookie_value(cookie_header, V2_ORGANISATION_COOKIE)
-                if not session_id or not organisation_id:
-                    _send_json(self, {"authenticated": False, "code": "AUTH_REQUIRED"}, 401)
-                    return
-                integration = self._v2()
-                context = integration.session(session_id, organisation_id)
-                destination = integration.platform_destination(session_id, organisation_id)
+                session_id, organisation_id, context, platform = self._authenticated_context()
                 _send_json(self, {
                     "authenticated": True,
                     "session_id": session_id,
                     "organisation_id": organisation_id,
                     "context": context,
-                    "platform": destination.get("data") or destination,
+                    "platform": platform,
                 })
             except Exception as exc:
                 _send_json(self, {"error": str(exc), "code": "V2_SESSION_UNAVAILABLE"}, 401)
             return
+
+        if path == "/api/module-catalog" and v2_enabled():
+            try:
+                _, _, _, platform = self._authenticated_context()
+                catalog = _module_catalog_for_entitlements(platform.get("entitlements", []))
+                _send_json(self, {
+                    "ok": True,
+                    "catalog": catalog,
+                })
+            except Exception as exc:
+                _send_json(self, {"error": str(exc), "code": "V2_MODULE_CATALOG_UNAVAILABLE"}, 401)
+            return
+
         super().do_GET()
 
     def do_POST(self):
