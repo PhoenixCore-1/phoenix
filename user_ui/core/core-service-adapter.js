@@ -30,34 +30,38 @@ function unwrapApiResponse(body) {
   return body;
 }
 
-async function request(path, options = {}) {
-  const headers = {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-    ...(coreContext.sessionId ? { "X-Phoenix-Session-Id": coreContext.sessionId } : {}),
-    ...(coreContext.organisationId ? { "X-Phoenix-Organisation-Id": coreContext.organisationId } : {}),
-    ...(coreContext.token ? { Authorization: `Bearer ${coreContext.token}` } : {}),
-    ...(options.headers || {})
+export async function getCoreRequest() {
+  return async function request(path, options = {}) {
+    const headers = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(coreContext.sessionId ? { "X-Phoenix-Session-Id": coreContext.sessionId } : {}),
+      ...(coreContext.organisationId ? { "X-Phoenix-Organisation-Id": coreContext.organisationId } : {}),
+      ...(coreContext.token ? { Authorization: `Bearer ${coreContext.token}` } : {}),
+      ...(options.headers || {})
+    };
+
+    const response = await fetch(path, {
+      credentials: "same-origin",
+      ...options,
+      headers
+    });
+
+    let body = null;
+    try { body = await response.json(); } catch (_) { body = null; }
+
+    if (!response.ok) {
+      const payload = unwrapApiResponse(body);
+      const error = new Error(payload?.error || body?.error || `Phoenix Core API request failed (${response.status}).`);
+      error.status = response.status;
+      error.code = payload?.code || body?.code;
+      throw error;
+    }
+    return unwrapApiResponse(body);
   };
-
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    ...options,
-    headers
-  });
-
-  let body = null;
-  try { body = await response.json(); } catch (_) { body = null; }
-
-  if (!response.ok) {
-    const payload = unwrapApiResponse(body);
-    const error = new Error(payload?.error || body?.error || `Phoenix Core API request failed (${response.status}).`);
-    error.status = response.status;
-    error.code = payload?.code || body?.code;
-    throw error;
-  }
-  return unwrapApiResponse(body);
 }
+
+const request = async (path, options = {}) => (await getCoreRequest())(path, options);
 
 export const coreServiceAdapter = {
   setContext: setCoreContext,
@@ -97,10 +101,7 @@ export const coreServiceAdapter = {
       ? tasks.filter((task) => String(task.assigned_to ?? "") === String(userId ?? ""))
       : [];
 
-    return {
-      tasks: assignedTasks,
-      notifications: Array.isArray(notifications) ? notifications : []
-    };
+    return { tasks: assignedTasks, notifications: Array.isArray(notifications) ? notifications : [] };
   },
 
   async completeWorkflowTask(taskId, notes = null) {
@@ -117,9 +118,7 @@ export const coreServiceAdapter = {
 
   async getNotifications() {
     const injected = window.PhoenixCoreApi?.getNotifications;
-    return typeof injected === "function"
-      ? unwrapApiResponse(await injected())
-      : request(`${CORE_API_BASE}/notifications`);
+    return typeof injected === "function" ? unwrapApiResponse(await injected()) : request(`${CORE_API_BASE}/notifications`);
   },
 
   async getCommunicationContext() {
