@@ -2,6 +2,7 @@ import {
   getProductionContract,
   productionServiceState
 } from "./production-module-adapter.js";
+import { renderProductionOrdersWorkspace } from "./production-orders-workspace.js";
 
 /* Production module workspace renderer.
  * Business rules remain in the Production Module. This file owns only
@@ -36,13 +37,17 @@ export function renderProductionWorkspace({ workspaceView, module }) {
   `;
 
   workspaceView.querySelectorAll("[data-production-route]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       workspaceView.querySelectorAll("[data-production-route]").forEach((item) => item.classList.remove("active"));
       button.classList.add("active");
       const panel = workspaceView.querySelector("#production-workspace-panel");
-      panel.innerHTML = button.dataset.productionRoute === "orders"
-        ? productionOrdersEntryMarkup(serviceState)
-        : productionOverviewMarkup(serviceState);
+
+      if (button.dataset.productionRoute === "orders") {
+        await renderProductionOrdersWorkspace({ workspaceView: panel, module });
+        return;
+      }
+
+      panel.innerHTML = productionOverviewMarkup(productionServiceState());
     });
   });
 }
@@ -65,22 +70,6 @@ function productionOverviewMarkup(serviceState) {
   return `
     <div class="empty-state">
       <div><strong>Production workspace connected</strong>Production data is available through the module service boundary.</div>
-    </div>
-  `;
-}
-
-function productionOrdersEntryMarkup(serviceState) {
-  if (serviceState !== "connected") {
-    return `
-      <div class="empty-state">
-        <div><strong>Production Orders are ready</strong>The order list will load from the authorized Production service. No browser-side database access is used.</div>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="empty-state">
-      <div><strong>Production Orders service connected</strong>The order list can now be populated through the Core/API contract.</div>
     </div>
   `;
 }
