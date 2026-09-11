@@ -27,47 +27,36 @@ class V2RuntimeAdapter:
     def from_environment(cls):
         root = os.getenv("PHOENIX_CORE_V2_PATH")
         if not root:
-            raise V2RuntimeUnavailable(
-                "PHOENIX_CORE_V2_PATH is not configured."
-            )
-
+            raise V2RuntimeUnavailable("PHOENIX_CORE_V2_PATH is not configured.")
         root_path = Path(root).expanduser().resolve()
         candidates = [root_path]
         src_path = root_path / "src"
         if src_path.is_dir():
             candidates.append(src_path)
-
         for candidate in candidates:
             path = str(candidate)
             if path not in sys.path:
                 sys.path.insert(0, path)
-
         try:
             from phoenix_core.runtime import build_runtime
         except ImportError as exc:
             raise V2RuntimeUnavailable(
                 "Phoenix Core V2 cannot be imported from PHOENIX_CORE_V2_PATH."
             ) from exc
-
         database_path = os.getenv("PHOENIX_CORE_V2_DATABASE")
         if not database_path:
-            raise V2RuntimeUnavailable(
-                "PHOENIX_CORE_V2_DATABASE is not configured."
-            )
-
+            raise V2RuntimeUnavailable("PHOENIX_CORE_V2_DATABASE is not configured.")
         try:
             runtime = build_runtime(database_path)
         except Exception as exc:
             raise V2RuntimeUnavailable(
                 "Phoenix Core V2 runtime failed to initialise."
             ) from exc
-
         return cls(runtime)
 
     def handle(self, request: V2Request):
         """Forward one request through Core V2's integration contract."""
         from phoenix_core.api.integration.contracts import IntegrationRequest
-
         integration_request = IntegrationRequest(
             request_id=request.request_id,
             operation=request.operation,
@@ -86,24 +75,43 @@ class V2RuntimeAdapter:
             organisation_id=(UUID(str(organisation_id)) if organisation_id else None),
         )
 
+    def _current_context_operation(self, operation, *, request_id, session_id, organisation_id):
+        response = self.handle(V2Request(
+            request_id=request_id,
+            operation=operation,
+            session_id=UUID(str(session_id)),
+            organisation_id=UUID(str(organisation_id)),
+        ))
+        return response.data
+
+    def current_identity(self, *, request_id, session_id, organisation_id):
+        return self._current_context_operation(
+            "identity.current", request_id=request_id,
+            session_id=session_id, organisation_id=organisation_id,
+        )
+
+    def current_organisation(self, *, request_id, session_id, organisation_id):
+        return self._current_context_operation(
+            "organisation.current", request_id=request_id,
+            session_id=session_id, organisation_id=organisation_id,
+        )
+
+    def current_user(self, *, request_id, session_id, organisation_id):
+        return self._current_context_operation(
+            "user.current", request_id=request_id,
+            session_id=session_id, organisation_id=organisation_id,
+        )
+
     def resolve_platform_destination(self, *, request_id, session_id, organisation_id):
         """Resolve the landing platform through authoritative Core V2 context."""
-        response = self.handle(
-            V2Request(
-                request_id=request_id,
-                operation="platform.destination.resolve",
-                session_id=UUID(str(session_id)),
-                organisation_id=UUID(str(organisation_id)),
-            )
+        return self._current_context_operation(
+            "platform.destination.resolve", request_id=request_id,
+            session_id=session_id, organisation_id=organisation_id,
         )
-        return response.data
 
     def revoke_session(self, *, request_id, token):
         """Terminate a V2 session through the authoritative V2 API."""
-        return self.runtime.api.revoke_session(
-            request_id=request_id,
-            token=token,
-        )
+        return self.runtime.api.revoke_session(request_id=request_id, token=token)
 
     def close(self):
         """Release the V2 runtime resources owned by this adapter."""
